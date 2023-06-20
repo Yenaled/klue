@@ -209,7 +209,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, std::ofstrea
         fname = real_fname;
       }
       if (color_name == fname) {
-        std::cerr << "        " << real_fname << ": " << std::to_string(j) << std::endl;
+        std::cerr << "        " << real_fname << ": " << j << " (multiplicity: " << opt.kmer_multiplicity[j] << ")" << std::endl;
         color_map[i] = j;
       }
     }
