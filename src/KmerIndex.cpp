@@ -6,7 +6,6 @@
 #include <functional>
 #include "common.h"
 #include "KmerIndex.h"
-#include "SparseVector.hpp"
 #include <iostream>
 #include <unordered_map>
 #include <string>
@@ -74,7 +73,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, std::ofstrea
   for (auto& fasta : opt.transfasta) {
     std::cerr << "[build] loading fasta file " << fasta
               << std::endl;
-    tmp_files.push_back(generate_tmp_file(opt.index + fasta));
+    tmp_files.push_back(generate_tmp_file(opt.distinguish_output_fasta + fasta));
   }
   
   std::vector<std::ofstream*> ofs; // Store pointers to circumvent certain compiler bugs where ofstream is non-movable

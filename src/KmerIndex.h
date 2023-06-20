@@ -16,7 +16,7 @@
 
 
 struct KmerIndex {
-  KmerIndex(const ProgramOptions& opt) : k(opt.k), {
+  KmerIndex(const ProgramOptions& opt) : k(opt.k) {
   }
 
   ~KmerIndex() {}

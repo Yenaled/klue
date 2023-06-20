@@ -39,6 +39,8 @@ bool checkFileExists(std::string fn) {
 
 void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
   int verbose_flag = 0;
+  int distinguish_all_flag = 0;
+  int distinguish_all_but_one_flag = 0;
   const char *opt_string = "o:k:m:t:z:";
   static struct option long_options[] = {
     // long args
@@ -165,13 +167,9 @@ bool CheckOptionsDistinguish(ProgramOptions& opt) {
     ret = false;
   }
   
-  if (opt.distinguish_union && distinguish_all_but_one_color) {
+  if (opt.distinguish_union && opt.distinguish_all_but_one_color) {
     cerr << "Error: Cannot use multiple distinguish options" << endl;
     ret = false;
-  }
-  
-  if (opt.transfasta.size() == 1) {
-    opt.distinguishUseInput = true; // Use pre-generated FASTA input
   }
 
   if (opt.g != 0) {
@@ -260,12 +258,12 @@ int main(int argc, char *argv[]) {
     } else if (cmd == "distinguish") {
       cerr << endl;
       if (argc==2) {
-        usageIndex();
+        usageDistinguish();
         return 0;
       }
       ParseOptionsDistinguish(argc-1,argv+1,opt);
       if (!CheckOptionsDistinguish(opt)) {
-        usageIndex();
+        usageDistinguish();
         exit(1);
       } else {
         Kmer::set_k(opt.k);

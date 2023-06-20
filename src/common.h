@@ -36,7 +36,6 @@ typedef unsigned int uint;
 
 struct ProgramOptions {
   bool verbose;
-  bool distinguishUseInput;
   int threads;
   std::string distinguish_output_fasta;
   int k;
@@ -45,16 +44,15 @@ struct ProgramOptions {
   bool distinguish_union;
   int distinguish_range_begin;
   int distinguish_range_end;
+  std::vector<std::string> transfasta;
 
 ProgramOptions() :
   verbose(false),
-  distinguishUseInput(false),
   threads(1),
   k(31),
   g(0),
   distinguish_all_but_one_color(false),
   distinguish_union(false),
-  distinguishUseInput(false),
   distinguish_range_begin(0),
   distinguish_range_end(0)
   {}
