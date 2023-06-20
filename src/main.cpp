@@ -41,7 +41,7 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
   int verbose_flag = 0;
   int distinguish_all_flag = 0;
   int distinguish_all_but_one_flag = 0;
-  const char *opt_string = "o:k:m:t:z:";
+  const char *opt_string = "o:k:m:t:z:M:";
   static struct option long_options[] = {
     // long args
     {"verbose", no_argument, &verbose_flag, 1},
@@ -50,6 +50,7 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
     // short args
     {"output", required_argument, 0, 'o'},
     {"kmer-size", required_argument, 0, 'k'},
+    {"kmer-multiplicity", required_argument, 0, 'M'},
     {"min-size", required_argument, 0, 'm'},
     {"threads", required_argument, 0, 't'},
     {"distinguish-range", required_argument, 0, 'z'},
@@ -77,6 +78,17 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
     }
     case 'm': {
       stringstream(optarg) >> opt.g;
+      break;
+    }
+    case 'M': {
+      std::string str;
+      stringstream(optarg) >> str;
+      std::stringstream ss(str);
+      while(ss.good()) {
+        std::string s;
+        getline(ss, s, ',');
+        opt.kmer_multiplicity.push_back(std::atoi(s.c_str()));
+      }
       break;
     }
     case 't': {
@@ -117,6 +129,10 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
 
   for (int i = optind; i < argc; i++) {
     opt.transfasta.push_back(argv[i]);
+  }
+  
+  if (opt.kmer_multiplicity.size() == 0) {
+    opt.kmer_multiplicity.resize(opt.transfasta.size(), 1);
   }
 }
 
@@ -171,6 +187,19 @@ bool CheckOptionsDistinguish(ProgramOptions& opt) {
     cerr << "Error: Cannot use multiple distinguish options" << endl;
     ret = false;
   }
+  
+  if (opt.kmer_multiplicity.size() != opt.transfasta.size()) {
+    cerr << "Error: k-mer multiplicities must match the number of input files" << endl;
+    ret = false;
+  } else {
+    for (auto m : opt.kmer_multiplicity) {
+      if (m != 1 && m != 2) {
+        cerr << "Error: k-mer multiplicity must be either 1 or 2" << endl;
+        ret = false;
+        break;
+      }
+    }
+  }
 
   if (opt.g != 0) {
     if (opt.g <= 2 || opt.g > opt.k - 2) {
@@ -210,6 +239,8 @@ void usageDistinguish() {
        << "-o, --output=STRING        Filename for the output FASTA" << endl << endl
        << "Optional argument:" << endl
        << "-k, --kmer-size=INT         k-mer (odd) length (default: 31, max value: " << (MAX_KMER_SIZE-1) << ")" << endl
+       << "-M, --kmer-multiplicity=INT Number of times a k-mer must be encountered (default: 1)" << endl
+       << "                            Can specify multiple numbers (one for each input file)" << endl
        << "-t, --threads=INT           Number of threads to use (default: 1)" << endl
        << "-m, --min-size=INT          Length of minimizers (default: automatically chosen)" << endl
        << endl;

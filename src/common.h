@@ -44,6 +44,7 @@ struct ProgramOptions {
   bool distinguish_union;
   int distinguish_range_begin;
   int distinguish_range_end;
+  std::vector<int> kmer_multiplicity;
   std::vector<std::string> transfasta;
 
 ProgramOptions() :

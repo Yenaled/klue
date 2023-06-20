@@ -91,6 +91,10 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, std::ofstrea
   
   int i = 0;
   for (auto& fasta : opt.transfasta) {
+    if (opt.kmer_multiplicity[i] != 1) {
+      i++;
+      break; // Don't do any processing or anything, use input file as-is
+    }
     fp = opt.transfasta.size() == 1 && opt.transfasta[0] == "-" ? gzdopen(fileno(stdin), "r") : gzopen(fasta.c_str(), "r");
     seq = kseq_init(fp);
     while (true) {
@@ -167,7 +171,13 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, std::ofstrea
   c_opt.clipTips = false;
   c_opt.deleteIsolated = false;
   c_opt.verbose = true;
-  c_opt.filename_ref_in = tmp_files;
+  for (int i = 0; i < tmp_files.size(); i++) {
+    if (opt.kmer_multiplicity[i] == 1) {
+      c_opt.filename_ref_in.push_back(tmp_files[i]);
+    } else {
+      c_opt.filename_seq_in.push_back(opt.transfasta[i]);
+    }
+  }
   
   if (opt.g > 0) { // If minimizer length supplied, override the default
     c_opt.g = opt.g;
