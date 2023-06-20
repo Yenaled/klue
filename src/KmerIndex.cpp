@@ -93,7 +93,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, std::ofstrea
   for (auto& fasta : opt.transfasta) {
     if (opt.kmer_multiplicity[i] != 1) {
       i++;
-      break; // Don't do any processing or anything, use input file as-is
+      continue; // Don't do any processing or anything, use input file as-is
     }
     fp = opt.transfasta.size() == 1 && opt.transfasta[0] == "-" ? gzdopen(fileno(stdin), "r") : gzopen(fasta.c_str(), "r");
     seq = kseq_init(fp);
@@ -124,7 +124,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, std::ofstrea
           if (!finishTrimStart) {
             if (runningValidNuclLength >= k) {
               finishTrimStart = true;
-              trimNonNuclStart = i; // We trim the sequence beginning until we encounter k valid nucleotides (first valid k-mer)
+              trimNonNuclStart = i+1-k; // We trim the sequence beginning until we encounter k valid nucleotides (first valid k-mer)
             }
           }
           if (runningValidNuclLength >= k && finishTrimStart) trimNonNuclEnd = i; // We trim the sequence end from the last valid k-mer onward
@@ -170,7 +170,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, std::ofstrea
   c_opt.build = true;
   c_opt.clipTips = false;
   c_opt.deleteIsolated = false;
-  c_opt.verbose = true;
+  c_opt.verbose = opt.verbose;
   for (int i = 0; i < tmp_files.size(); i++) {
     if (opt.kmer_multiplicity[i] == 1) {
       c_opt.filename_ref_in.push_back(tmp_files[i]);
@@ -197,6 +197,23 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, std::ofstrea
   ColoredCDBG<void> ccdbg = ColoredCDBG<void>(k, c_opt.g);
   ccdbg.buildGraph(c_opt);
   ccdbg.buildColors(c_opt);
+  auto color_names = ccdbg.getColorNames();
+  std::vector<int> color_map;
+  color_map.resize(tmp_files.size());
+  for (int i = 0; i < color_names.size(); i++) {
+    auto color_name = color_names[i];
+    for (int j = 0; j < tmp_files.size(); j++) {
+      std::string fname = tmp_files[j];
+      std::string real_fname = opt.transfasta[j];
+      if (opt.kmer_multiplicity[j] != 1) {
+        fname = real_fname;
+      }
+      if (color_name == fname) {
+        std::cerr << "        " << real_fname << ": " << std::to_string(j) << std::endl;
+        color_map[i] = j;
+      }
+    }
+  }
   std::cerr << "[build] Extracting k-mers from graph" << std::endl;
   std::ofstream of(out_file); // Write color contigs into another file
   size_t max_threads_read = opt.threads;
@@ -225,7 +242,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, std::ofstrea
               UnitigColors::const_iterator it_uc_end = uc->end();
               std::map<int, std::set<int>> k_map;
               for (; it_uc != it_uc_end; ++it_uc) {
-                int color = it_uc.getColorID();
+                int color = color_map[it_uc.getColorID()];
                 k_map[color].insert(it_uc.getKmerPosition());
                 // DEBUG:
                 // std::cout << color << " " << unitig.getUnitigKmer(it_uc.getKmerPosition()).rep().toString() << " " << unitig.getUnitigKmer(it_uc.getKmerPosition()).toString() << " " << it_uc.getKmerPosition() << " " << unitig.strand << std::endl;
