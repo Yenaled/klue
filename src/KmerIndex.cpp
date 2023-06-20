@@ -215,7 +215,15 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, std::ofstrea
     }
   }
   std::cerr << "[build] Extracting k-mers from graph" << std::endl;
-  std::ofstream of(out_file); // Write color contigs into another file
+  std::streambuf* buf = nullptr;
+  std::ofstream of;
+  if (!opt.stream_out) {
+    of.open(out_file); // Write color contigs into another file
+    buf = of.rdbuf();
+  } else {
+    buf = std::cout.rdbuf();
+  }
+  std::ostream o(buf);
   size_t max_threads_read = opt.threads;
   std::vector<std::vector<std::pair<const UnitigColors*, const UnitigMap<DataAccessor<void>, DataStorage<void>, false> > > > unitigs_v(max_threads_read);
   size_t n = 0;
@@ -304,7 +312,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, std::ofstrea
               }
             }
             std::unique_lock<std::mutex> lock(mutex_unitigs);
-            of << oss.str();
+            o << oss.str();
           }
         );
       }
@@ -318,7 +326,9 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, std::ofstrea
   ccdbg.clear(); // Free memory associated with the colored compact dBG
   ncolors = tmp_files.size(); // Record the number of "colors"
   for (auto tmp_file : tmp_files) std::remove(tmp_file.c_str()); // Remove temp files needed to make colored graph
-  of.close();
+  if (!opt.stream_out) {
+    of.close();
+  }
   tmp_files.clear();
   ofs.clear();
 }

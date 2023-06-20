@@ -39,9 +39,10 @@ bool checkFileExists(std::string fn) {
 
 void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
   int verbose_flag = 0;
+  int pipe_flag = 0;
   int distinguish_all_flag = 0;
   int distinguish_all_but_one_flag = 0;
-  const char *opt_string = "o:k:m:t:z:M:";
+  const char *opt_string = "o:k:m:t:r:M:p";
   static struct option long_options[] = {
     // long args
     {"verbose", no_argument, &verbose_flag, 1},
@@ -49,11 +50,12 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
     {"all-but-one", no_argument, &distinguish_all_but_one_flag, 1},
     // short args
     {"output", required_argument, 0, 'o'},
+    {"pipe", no_argument, &pipe_flag, 'p'},
     {"kmer-size", required_argument, 0, 'k'},
     {"kmer-multiplicity", required_argument, 0, 'M'},
     {"min-size", required_argument, 0, 'm'},
     {"threads", required_argument, 0, 't'},
-    {"distinguish-range", required_argument, 0, 'z'},
+    {"range", required_argument, 0, 'r'},
     {0,0,0,0}
   };
   int c;
@@ -70,6 +72,10 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
       break;
     case 'o': {
       opt.distinguish_output_fasta = optarg;
+      break;
+    }
+    case 'p': {
+      pipe_flag = 1;
       break;
     }
     case 'k': {
@@ -95,7 +101,7 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
       stringstream(optarg) >> opt.threads;
       break;
     }
-    case 'z': {
+    case 'r': {
       std::string range_input_str;
       stringstream(optarg) >> range_input_str;
       stringstream ss(range_input_str);
@@ -118,6 +124,9 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
 
   if (verbose_flag) {
     opt.verbose = true;
+  }
+  if (pipe_flag) {
+    opt.stream_out = true;
   }
   
   if (distinguish_all_flag) {
@@ -178,8 +187,15 @@ bool CheckOptionsDistinguish(ProgramOptions& opt) {
     }
   }
 
-  if (opt.distinguish_output_fasta.empty()) {
-    cerr << "Error: need to specify output FASTA file name" << endl;
+  if (opt.distinguish_output_fasta.empty() && !opt.stream_out) {
+    cerr << "Error: need to specify output FASTA file name or use --pipe" << endl;
+    ret = false;
+  } else if (!opt.distinguish_output_fasta.empty() && opt.stream_out) {
+    cerr << "Error: cannot supply both output FASTA file name and --pipe" << endl;
+    ret = false;
+  }
+  if (opt.stream_out && opt.verbose) {
+    cerr << "Error: cannot supply both --verbose and --pipe" << endl;
     ret = false;
   }
   
@@ -206,6 +222,14 @@ bool CheckOptionsDistinguish(ProgramOptions& opt) {
       cerr << "Error: invalid minimizer size " << opt.g << ", minimum is 3 and maximum is k - 2" << endl;
       ret = false;
     }
+  }
+
+  if (opt.distinguish_range_end == 0) {
+    opt.distinguish_range_end = opt.distinguish_range_begin;
+  }
+  if (opt.distinguish_range_end < opt.distinguish_range_begin) {
+    cerr << "Error: invalid range supplied" << endl;
+    ret = false;
   }
 
   return ret;
@@ -235,11 +259,14 @@ void usageDistinguish() {
   cout << "kure " << KURE_VERSION << endl
        << "Extracts distinguishing contigs from FASTA/FASTQ files" << endl << endl
        << "Usage: kure distinguish [arguments] FASTA-files" << endl << endl
-       << "Required argument:" << endl
+       << "Required argument (choose one of the following):" << endl
+       << "-p, --pipe                 Direct output to standard output" << endl
        << "-o, --output=STRING        Filename for the output FASTA" << endl << endl
        << "Optional argument:" << endl
        << "-k, --kmer-size=INT         k-mer (odd) length (default: 31, max value: " << (MAX_KMER_SIZE-1) << ")" << endl
        << "-M, --kmer-multiplicity=INT Number of times a k-mer must be encountered (default: 1)" << endl
+       << "                            Can specify multiple numbers (one for each input file)" << endl
+       << "-r, --range=INT-INT         Set the range of of length of output sequences (format: begin-end)" << endl
        << "                            Can specify multiple numbers (one for each input file)" << endl
        << "-t, --threads=INT           Number of threads to use (default: 1)" << endl
        << "-m, --min-size=INT          Length of minimizers (default: automatically chosen)" << endl
@@ -303,7 +330,6 @@ int main(int argc, char *argv[]) {
         out.open(opt.distinguish_output_fasta, std::ios::out | std::ios::binary);
         index.BuildDistinguishingGraph(opt, out);
       }
-      cerr << endl;
     } else {
       cerr << "Error: invalid command " << cmd << endl;
       usage();

@@ -40,6 +40,7 @@ struct ProgramOptions {
   std::string distinguish_output_fasta;
   int k;
   int g;
+  bool stream_out;
   bool distinguish_all_but_one_color;
   bool distinguish_union;
   int distinguish_range_begin;
@@ -52,6 +53,7 @@ ProgramOptions() :
   threads(1),
   k(31),
   g(0),
+  stream_out(false),
   distinguish_all_but_one_color(false),
   distinguish_union(false),
   distinguish_range_begin(0),
