@@ -5,6 +5,7 @@
 #include "ProcessReads.h"
 #include "kseq.h"
 #include <unordered_set>
+#include "StringSearch.h"
 
 std::string pretty_num(size_t num) {
   auto s = std::to_string(num);
