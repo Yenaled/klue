@@ -13,7 +13,7 @@
 #include <cstdio>
 
 #include "common.h"
-//#include "ProcessReads.h"
+#include "ProcessReads.h"
 #include "KmerIndex.h"
 #include <CompactedDBG.hpp>
 
@@ -145,6 +145,90 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
   }
 }
 
+
+void ParseOptionsRefine(int argc, char **argv, ProgramOptions& opt) {
+  int verbose_flag = 0;
+  int pipe_flag = 0;
+  const char *opt_string = "o:i:t:r:p";
+  static struct option long_options[] = {
+    // long args
+    {"verbose", no_argument, &verbose_flag, 1},
+    // short args
+    {"output", required_argument, 0, 'o'},
+    {"pipe", no_argument, &pipe_flag, 'p'},
+    {"inner", required_argument, 0, 'i'},
+    {"threads", required_argument, 0, 't'},
+    {"range", required_argument, 0, 'r'},
+    {0,0,0,0}
+  };
+  int c;
+  int option_index = 0;
+  while (true) {
+    c = getopt_long(argc,argv,opt_string, long_options, &option_index);
+    
+    if (c == -1) {
+      break;
+    }
+
+    switch (c) {
+    case 0:
+      break;
+    case 'o': {
+      opt.distinguish_output_fasta = optarg;
+      break;
+    }
+    case 'p': {
+      pipe_flag = 1;
+      break;
+    }
+    case 'i': {
+      std::string str;
+      stringstream(optarg) >> str;
+      std::stringstream ss(str);
+      while(ss.good()) {
+        std::string s;
+        getline(ss, s, ',');
+        opt.inner.push_back(std::atoi(s.c_str()));
+      }
+      break;
+    }
+    case 't': {
+      stringstream(optarg) >> opt.threads;
+      break;
+    }
+    case 'r': {
+      std::string range_input_str;
+      stringstream(optarg) >> range_input_str;
+      stringstream ss(range_input_str);
+      std::string range_val;
+      int i = 0;
+      char delimeter = '-';
+      if (range_input_str.find(',') < range_input_str.length()) {
+        delimeter = ','; // If string contains commas, use commas as delimeter
+      }
+      while (std::getline(ss, range_val, delimeter)) { 
+        if (i == 0) opt.distinguish_range_begin = std::atoi(range_val.c_str());
+        if (i == 1) opt.distinguish_range_end = std::atoi(range_val.c_str());
+        i++;
+      }
+      break;
+    }
+    default: break;
+    }
+  }
+
+  if (verbose_flag) {
+    opt.verbose = true;
+  }
+  if (pipe_flag) {
+    opt.stream_out = true;
+  }
+  
+  for (int i = optind; i < argc; i++) {
+    opt.transfasta.push_back(argv[i]);
+  }
+}
+
 bool CheckOptionsDistinguish(ProgramOptions& opt) {
 
   bool ret = true;
@@ -235,6 +319,60 @@ bool CheckOptionsDistinguish(ProgramOptions& opt) {
   return ret;
 }
 
+bool CheckOptionsRefine(ProgramOptions& opt) {
+
+  bool ret = true;
+
+  if (opt.threads <= 0) {
+    cerr << "Error: invalid number of threads " << opt.threads << endl;
+    ret = false;
+  } else {
+    unsigned int n = std::thread::hardware_concurrency();
+    if (n != 0 && n < opt.threads) {
+      cerr << "Warning: you asked for " << opt.threads
+           << ", but only " << n << " cores on the machine" << endl;
+      opt.threads = n;
+    }
+  }
+  
+  if (opt.transfasta.empty()) {
+    cerr << "Error: no FASTA files specified" << endl;
+    ret = false;
+  } else {
+    for (auto& fasta : opt.transfasta) {
+      struct stat stFileInfo;
+      auto intStat = stat(fasta.c_str(), &stFileInfo);
+      if (intStat != 0) {
+        cerr << "Error: FASTA file not found " << fasta << endl;
+        ret = false;
+      }
+    }
+  }
+
+  if (opt.distinguish_output_fasta.empty() && !opt.stream_out) {
+    cerr << "Error: need to specify output FASTA file name or use --pipe" << endl;
+    ret = false;
+  } else if (!opt.distinguish_output_fasta.empty() && opt.stream_out) {
+    cerr << "Error: cannot supply both output FASTA file name and --pipe" << endl;
+    ret = false;
+  }
+  if (opt.stream_out && opt.verbose) {
+    cerr << "Error: cannot supply both --verbose and --pipe" << endl;
+    ret = false;
+  }
+
+  if (opt.distinguish_range_end == 0) {
+    opt.distinguish_range_end = opt.distinguish_range_begin;
+  }
+  if (opt.distinguish_range_end < opt.distinguish_range_begin) {
+    cerr << "Error: invalid range supplied" << endl;
+    ret = false;
+  }
+
+  return ret;
+}
+
+
 void PrintCite() {
   cout << "When using this program in your research, please cite" << endl << endl
        << "  [todo]" << endl
@@ -274,6 +412,21 @@ void usageDistinguish() {
        << "-m, --min-size=INT          Length of minimizers (default: automatically chosen)" << endl
        << endl;
 
+}
+
+void usageRefine() {
+  cout << "kure " << KURE_VERSION << endl
+       << "Refines contigs in FASTA files, outputting the ones that meet certain criteria" << endl << endl
+       << "Usage: kure refine [arguments] FASTA-files" << endl << endl
+       << "Required argument (choose one of the following):" << endl
+       << "-p, --pipe                 Direct output to standard output" << endl
+       << "-o, --output=STRING        Filename for the output FASTA" << endl << endl
+       << "Optional argument:" << endl
+       << "-i, --inner=INT             The length of the inner region between two flanking regions of a contig" << endl
+       << "-r, --range=INT-INT         Set the range of of length of output sequences (format: begin-end)" << endl
+       << "-t, --threads=INT           Number of threads to use (default: 1)" << endl
+       << endl;
+  
 }
 
 std::string argv_to_string(int argc, char *argv[]) {
@@ -331,6 +484,21 @@ int main(int argc, char *argv[]) {
         std::ofstream out;
         out.open(opt.distinguish_output_fasta, std::ios::out | std::ios::binary);
         index.BuildDistinguishingGraph(opt, out);
+      }
+    } else if (cmd == "refine") {
+      cerr << endl;
+      if (argc==2) {
+        usageRefine();
+        return 0;
+      }
+      ParseOptionsRefine(argc-1,argv+1,opt);
+      if (!CheckOptionsRefine(opt)) {
+        usageRefine();
+        exit(1);
+      } else {
+        //MasterProcessor MP(opt);
+        //int numreads = ProcessReads(MP, opt);
+        fflush(stdout);
       }
     } else {
       cerr << "Error: invalid command " << cmd << endl;
