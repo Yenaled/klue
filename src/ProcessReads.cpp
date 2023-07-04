@@ -40,26 +40,38 @@ int64_t ProcessReads(MasterProcessor& MP, const  ProgramOptions& opt) {
   size_t numreads = 0;
   
   if (MP.verbose) {
-    std::cerr << "* processing the reads ..."; std::cerr.flush();
+    std::cerr << "* processing the contigs ..."; std::cerr.flush();
+  }
+  MP.processContigs();
+  numreads = MP.numreads;
+  if (MP.verbose) {
+    std::cerr << std::endl << "done " << std::endl;
+  }
+  if (MP.verbose) {
+    std::cerr << "* processed " << pretty_num(numreads) << " contigs";
+    std::cerr << std::endl;
   }
   
+  if (MP.verbose) {
+    std::cerr << "* processing the contigs ..."; std::cerr.flush();
+  }
   MP.processReads();
   numreads = MP.numreads;
   if (MP.verbose) {
     std::cerr << std::endl << "done " << std::endl;
   }
-
   if (MP.verbose) {
-    std::cerr << "* processed " << pretty_num(numreads) << " reads";
+    std::cerr << "* processed " << pretty_num(numreads) << " sequences";
     std::cerr << std::endl;
   }
+
   return numreads;
 }
 
 
 /** -- read processors -- **/
 
-void MasterProcessor::processReads() {
+void MasterProcessor::processContigs() {
 
   // start worker threads
   
@@ -73,6 +85,29 @@ void MasterProcessor::processReads() {
   for (int i = 0; i < opt.threads; i++) {
     workers[i].join(); //wait for them to finish
   }
+  delete inSR;
+  inSR = nullptr;
+}
+
+
+void MasterProcessor::processReads() {
+  
+  readSeqs = true;
+  
+  // start worker threads
+  
+  std::vector<std::thread> workers;
+  
+  for (int i = 0; i < opt.threads; i++) {
+    workers.emplace_back(std::thread(ReadProcessor(opt,*this)));
+  }
+  
+  // let the workers do their thing
+  for (int i = 0; i < opt.threads; i++) {
+    workers[i].join(); //wait for them to finish
+  }
+  delete SR;
+  SR = nullptr;
 }
 
 void MasterProcessor::update(int n, 
@@ -96,8 +131,7 @@ void MasterProcessor::update(int n,
   cv.notify_all(); // Alert all other threads to check their readbatch_id's!
 }
 
-void MasterProcessor::writeOutput(std::vector<SplitCode::Results>& rv,
-                                  std::vector<std::pair<const char*, int>>& seqs,
+void MasterProcessor::writeOutput(std::vector<std::pair<const char*, int>>& seqs,
                                   std::vector<std::pair<const char*, int>>& names,
                                   std::vector<std::pair<const char*, int>>& quals,
                                   std::vector<uint32_t>& flags) {
@@ -128,12 +162,6 @@ ReadProcessor::ReadProcessor(const ProgramOptions& opt, MasterProcessor& mp) :
   bufsize = mp.bufsize;
   buffer = new char[bufsize];
   seqs.reserve(bufsize/50);
-  full = !mp.opt.no_output;
-  if (full) {
-    quals.reserve(bufsize/50);
-  }
-  comments = mp.opt.keep_fastq_comments;
-  rv.reserve(1000);
   clear();
 }
 
@@ -163,29 +191,39 @@ void ReadProcessor::operator()() {
   while (true) {
     int readbatch_id;
     std::vector<std::string> umis;
+    FastqSequenceReader *SR;
+    bool full = false;
+    bool comments = false;
+    if (mp.readSeqs) {
+      SR = mp.SR;
+    } else {
+      full = true; // We need to get the name
+      SR = mp.inSR;
+    }
     // grab the reader lock
     {
       std::lock_guard<std::mutex> lock(mp.reader_lock);
-      if (mp.SR->empty()) {
+      if (SR->empty()) {
         // nothing to do
         return;
       } else {
         // get new sequences
-        mp.SR->fetchSequences(buffer, bufsize, seqs, names, quals, flags, readbatch_id, full, comments);
+        SR->fetchSequences(buffer, bufsize, seqs, names, quals, flags, readbatch_id, full, comments);
       }
       // release the reader lock
     }
     
     // process our sequences
-    processBuffer();
+    if (mp.readSeqs) {
+      processBuffer();
+    } else {
+      processBufferContigs();
+    }
     
     // update the results, MP acquires the lock
-    int nfiles = mp.nfiles;
-    mp.update(seqs.size() / nfiles, rv, seqs, names, quals, flags, readbatch_id);
+    int nfiles = SR->nfiles;
+    mp.update(seqs.size() / nfiles, seqs, names, quals, flags, readbatch_id);
     clear();
-    if (mp.opt.max_num_reads != 0 && mp.numreads >= mp.opt.max_num_reads) {
-      return;
-    }
   }
 }
 
@@ -204,13 +242,39 @@ void ReadProcessor::processBuffer() {
     for (int j = 0; j < jmax; j++) {
       s[j] = seqs[i+j].first;
       l[j] = seqs[i+j].second;
-      // TODO: (note: also need to process input_fasta_contig as well)
     }
     i += incf;
     numreads++;
     if (numreads > 0 && numreads % 1000000 == 0 && mp.verbose) {
       numreads = 0; // reset counter
       std::cerr << '\r' << (mp.numreads/1000000) << "M reads processed";
+      std::cerr << "         ";
+      std::cerr.flush();
+    }
+  }
+}
+
+void ReadProcessor::processBufferContigs() {
+  // actually process the sequence
+  
+  int incf, jmax, nfiles;
+  nfiles = mp.nfiles;
+  incf = nfiles-1;
+  jmax = nfiles;
+  
+  std::vector<const char*> s(jmax, nullptr);
+  std::vector<int> l(jmax,0);
+  
+  for (int i = 0; i + incf < seqs.size(); i++) {
+    for (int j = 0; j < jmax; j++) {
+      s[j] = seqs[i+j].first;
+      l[j] = seqs[i+j].second;
+    }
+    i += incf;
+    numreads++;
+    if (numreads > 0 && numreads % 1000000 == 0 && mp.verbose) {
+      numreads = 0; // reset counter
+      std::cerr << '\r' << (mp.numreads/1000000) << "M contigs processed";
       std::cerr << "         ";
       std::cerr.flush();
     }
@@ -334,7 +398,8 @@ bool FastqSequenceReader::fetchSequences(char *buf, const int limit, std::vector
       if (full) {
         for (int i = 0; i < nfiles; i++) {
           nl[i] = seq[i]->name.l + (comments ? seq[i]->comment.l+1 : 0);
-          bufadd += l[i] + nl[i]; // includes name and qual
+          bufadd += nl[i]; // includes name
+          //bufadd += l[i]; // include qual
         }
         bufadd += 2*pad;
       }
@@ -358,7 +423,7 @@ bool FastqSequenceReader::fetchSequences(char *buf, const int limit, std::vector
             pi = buf + bufpos;
             memcpy(pi, seq[i]->qual.s,l[i]+1);
             bufpos += l[i]+1;
-            quals.emplace_back(pi,l[i]);
+            //quals.emplace_back(pi,l[i]);
             pi = buf + bufpos;
             memcpy(pi, seq[i]->name.s, nl[i]+1);
             bufpos += nl[i]+1;
@@ -367,7 +432,7 @@ bool FastqSequenceReader::fetchSequences(char *buf, const int limit, std::vector
             pi = buf + bufpos;
             memcpy(pi, seq[i]->qual.s,l[i]+1);
             bufpos += l[i]+1;
-            quals.emplace_back(pi,l[i]);
+            //quals.emplace_back(pi,l[i]);
             pi = buf + bufpos;
             memcpy(pi, seq[i]->name.s, (nl[i]-(seq[i]->comment.l+1)));
             names.emplace_back(pi, nl[i]);

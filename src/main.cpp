@@ -514,7 +514,7 @@ int main(int argc, char *argv[]) {
         usageRefine();
         exit(1);
       } else {
-        //MasterProcessor MP(opt);
+        MasterProcessor MP(opt);
         //int numreads = ProcessReads(MP, opt);
         fflush(stdout);
       }

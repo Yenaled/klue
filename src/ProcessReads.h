@@ -47,10 +47,10 @@ public:
 class FastqSequenceReader : public SequenceReader {
 public:
   
-  FastqSequenceReader(const ProgramOptions& opt) : SequenceReader(opt),
-  current_file(0), files(opt.transfasta) {
+  FastqSequenceReader(const ProgramOptions& opt, const std::vector<std::string>& _files) : 
+  SequenceReader(opt), current_file(0), files(_files) {
     SequenceReader::state = false;
-    nfiles = opt.transfasta.size();
+    nfiles = _files.size();
     reserveNfiles(nfiles);
   }
   FastqSequenceReader() : SequenceReader(), 
@@ -70,7 +70,6 @@ public:
                       bool comments=false);
   
 public:
-  int nfiles = 1;
   uint32_t numreads = 0;
   std::vector<gzFile> fp;
   std::vector<int> l;
@@ -79,14 +78,19 @@ public:
   int current_file;
   std::vector<kseq_t*> seq;
   int interleave_nfiles;
+  int nfiles = 1;
 };
 
 class MasterProcessor {
 public:
   MasterProcessor (const ProgramOptions& opt)
     : opt(opt), numreads(0), bufsize(1ULL<<23), curr_readbatch_id(0) { 
-    
-    SR = new FastqSequenceReader(opt);
+
+    readSeqs = false;
+    SR = new FastqSequenceReader(opt, opt.transfasta);
+    std::vector<std::string> in_files;
+    in_files.push_back(opt.input_fasta_contig);
+    inSR = new FastqSequenceReader(opt, in_files);
     verbose = opt.verbose;
     nfiles = opt.transfasta.size();
     auto f = opt.distinguish_output_fasta;
@@ -95,7 +99,8 @@ public:
   
   ~MasterProcessor() {
     fclose(out);
-    delete SR;
+    if (SR != nullptr) delete SR;
+    if (inSR != nullptr) delete inSR;
   }
   
   std::mutex reader_lock;
@@ -104,10 +109,11 @@ public:
   
   FILE* out;
   bool verbose;
+  bool readSeqs; // If we should start reading FASTA sequences, not contigs
   
-  SequenceReader *SR;
-  std::vector<FastqSequenceReader> FSRs;
-  
+  FastqSequenceReader *SR; // Reading the FASTA files
+  FastqSequenceReader *inSR; // Reading the input contigs FASTA
+
   const ProgramOptions& opt;
   int64_t numreads;
   size_t bufsize;
@@ -115,6 +121,7 @@ public:
   int curr_readbatch_id;
   
   void processReads();
+  void processContigs();
   void update(int n,
               std::vector<std::pair<const char*, int>>& seqs,
               std::vector<std::pair<const char*, int>>& names,
@@ -151,6 +158,7 @@ public:
   
   void operator()();
   void processBuffer();
+  void processBufferContigs();
   void clear();
 };
 
