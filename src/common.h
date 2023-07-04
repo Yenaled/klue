@@ -38,6 +38,7 @@ struct ProgramOptions {
   bool verbose;
   int threads;
   std::string distinguish_output_fasta;
+  std::string input_fasta_contig;
   int k;
   int g;
   bool stream_out;

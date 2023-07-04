@@ -99,8 +99,6 @@ public:
   }
   
   std::mutex reader_lock;
-  std::vector<std::mutex> parallel_reader_locks;
-  bool parallel_read;
   std::mutex writer_lock;
   std::condition_variable cv;
   
@@ -122,7 +120,11 @@ public:
               std::vector<std::pair<const char*, int>>& names,
               std::vector<std::pair<const char*, int>>& quals,
               std::vector<uint32_t>& flags,
-              int readbatch_id);  
+              int readbatch_id);
+  void writeOutput(std::vector<std::pair<const char*, int>>& seqs,
+                   std::vector<std::pair<const char*, int>>& names,
+                   std::vector<std::pair<const char*, int>>& quals,
+                   std::vector<uint32_t>& flags);
 };
 
 class ReadProcessor {

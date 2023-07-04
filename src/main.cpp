@@ -149,14 +149,15 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
 void ParseOptionsRefine(int argc, char **argv, ProgramOptions& opt) {
   int verbose_flag = 0;
   int pipe_flag = 0;
-  const char *opt_string = "o:i:t:r:p";
+  const char *opt_string = "o:i:I:t:r:p";
   static struct option long_options[] = {
     // long args
     {"verbose", no_argument, &verbose_flag, 1},
     // short args
     {"output", required_argument, 0, 'o'},
     {"pipe", no_argument, &pipe_flag, 'p'},
-    {"inner", required_argument, 0, 'i'},
+    {"input", required_argument, 0, 'i'},
+    {"inner", required_argument, 0, 'I'},
     {"threads", required_argument, 0, 't'},
     {"range", required_argument, 0, 'r'},
     {0,0,0,0}
@@ -182,6 +183,10 @@ void ParseOptionsRefine(int argc, char **argv, ProgramOptions& opt) {
       break;
     }
     case 'i': {
+      opt.input_fasta_contig = optarg;
+      break;
+    }
+    case 'I': {
       std::string str;
       stringstream(optarg) >> str;
       std::stringstream ss(str);
@@ -348,6 +353,18 @@ bool CheckOptionsRefine(ProgramOptions& opt) {
       }
     }
   }
+  
+  if (opt.input_fasta_contig.size() == 0) {
+    cerr << "Error: no input contig FASTA file specified" << endl;
+    ret = false;
+  } else {
+    struct stat stFileInfo;
+    auto intStat = stat(opt.input_fasta_contig.c_str(), &stFileInfo);
+    if (intStat != 0) {
+      cerr << "Error: FASTA file not found " << opt.input_fasta_contig << endl;
+      ret = false;
+    }
+  }
 
   if (opt.distinguish_output_fasta.empty() && !opt.stream_out) {
     cerr << "Error: need to specify output FASTA file name or use --pipe" << endl;
@@ -416,13 +433,14 @@ void usageDistinguish() {
 
 void usageRefine() {
   cout << "kure " << KURE_VERSION << endl
-       << "Refines contigs in FASTA files, outputting the ones that meet certain criteria" << endl << endl
+       << "Refines contigs in FASTA file, outputting the ones that meet certain criteria" << endl << endl
        << "Usage: kure refine [arguments] FASTA-files" << endl << endl
        << "Required argument (choose one of the following):" << endl
        << "-p, --pipe                 Direct output to standard output" << endl
+       << "-i, --input=STRING         Filename for the input contig FASTA" << endl
        << "-o, --output=STRING        Filename for the output FASTA" << endl << endl
        << "Optional argument:" << endl
-       << "-i, --inner=INT             The length of the inner region between two flanking regions of a contig" << endl
+       << "-I, --inner=INT             The length of the inner region between two flanking regions of a contig" << endl
        << "-r, --range=INT-INT         Set the range of of length of output sequences (format: begin-end)" << endl
        << "-t, --threads=INT           Number of threads to use (default: 1)" << endl
        << endl;
