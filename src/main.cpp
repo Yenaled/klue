@@ -488,7 +488,6 @@ int main(int argc, char *argv[]) {
     } else if (cmd == "cite") {
       PrintCite();
     } else if (cmd == "distinguish") {
-      cerr << endl;
       if (argc==2) {
         usageDistinguish();
         return 0;
@@ -505,7 +504,6 @@ int main(int argc, char *argv[]) {
         index.BuildDistinguishingGraph(opt, out);
       }
     } else if (cmd == "refine") {
-      cerr << endl;
       if (argc==2) {
         usageRefine();
         return 0;
