@@ -405,6 +405,7 @@ void usage() {
        << "Usage: kure <CMD> [arguments] .." << endl << endl
        << "Where <CMD> can be one of:" << endl << endl
        << "    distinguish   Extracts distinguishing contigs from FASTA/FASTQ files "<< endl
+       << "    refine        Refine contigs based on certain criteria"<< endl
        << "    version       Prints version information" << endl
        << "    cite          Prints citation information" << endl << endl
        << "Running kure <CMD> without arguments prints usage information for <CMD>"<< endl << endl;
@@ -515,7 +516,7 @@ int main(int argc, char *argv[]) {
         exit(1);
       } else {
         MasterProcessor MP(opt);
-        //int numreads = ProcessReads(MP, opt);
+        int numreads = ProcessReads(MP, opt);
         fflush(stdout);
       }
     } else {

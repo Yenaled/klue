@@ -259,17 +259,14 @@ void ReadProcessor::processBufferContigs() {
   // actually process the sequence
   
   int incf, jmax, nfiles;
-  nfiles = mp.nfiles;
+  nfiles = 1; //nfiles = mp.nfiles;
   incf = nfiles-1;
   jmax = nfiles;
-  
-  std::vector<const char*> s(jmax, nullptr);
-  std::vector<int> l(jmax,0);
-  
+
   for (int i = 0; i + incf < seqs.size(); i++) {
     for (int j = 0; j < jmax; j++) {
-      s[j] = seqs[i+j].first;
-      l[j] = seqs[i+j].second;
+      // Debug:
+      std::cout << std::string(names[i+j].first, names[i+j].second) << " " << std::string(s[j], l[j]) << std::endl;
     }
     i += incf;
     numreads++;
@@ -280,6 +277,8 @@ void ReadProcessor::processBufferContigs() {
       std::cerr.flush();
     }
   }
+  
+  exit(0); // TODO: remove
 }
 
 void ReadProcessor::clear() {
@@ -421,18 +420,18 @@ bool FastqSequenceReader::fetchSequences(char *buf, const int limit, std::vector
           seqs.emplace_back(pi,l[i]);
           
           if (full && !comments) {
-            pi = buf + bufpos;
-            memcpy(pi, seq[i]->qual.s,l[i]+1);
-            bufpos += l[i]+1;
+            //pi = buf + bufpos;
+            //memcpy(pi, seq[i]->qual.s,l[i]+1);
+            //bufpos += l[i]+1;
             //quals.emplace_back(pi,l[i]);
             pi = buf + bufpos;
             memcpy(pi, seq[i]->name.s, nl[i]+1);
             bufpos += nl[i]+1;
             names.emplace_back(pi, nl[i]);
           } else if (full && comments) {
-            pi = buf + bufpos;
-            memcpy(pi, seq[i]->qual.s,l[i]+1);
-            bufpos += l[i]+1;
+            //pi = buf + bufpos;
+            //memcpy(pi, seq[i]->qual.s,l[i]+1);
+            //bufpos += l[i]+1;
             //quals.emplace_back(pi,l[i]);
             pi = buf + bufpos;
             memcpy(pi, seq[i]->name.s, (nl[i]-(seq[i]->comment.l+1)));
