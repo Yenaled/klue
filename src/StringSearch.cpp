@@ -85,15 +85,42 @@ void AhoCorasick::search(const char* corpus, size_t len) {
           for (size_t j = 0; j < temp->matchedWords.size(); ++j) {
             const std::string& word = temp->matchedWords[j];
             int position = i - static_cast<int>(word.length()) + 1;
-            
-            // Debug:
-            std::cout << "Found occurrence of word: " << word << " at position: " << position << std::endl;
-            
+
             auto it = infomap.find(word);
             if (it != infomap.end()) {
               auto info = it->second;
+              if (strncmp(corpus+position, word.c_str(), word.length()) != 0) { // Sanity check
+                throw std::runtime_error("String search corrupted; discrepancy with position");
+              }
               // Debug:
-              std::cout << "Color: " << info.color << ", String: " << info.s << ", Strand: " << std::to_string(info.fwd) << std::endl;
+              std::cout << "Word: " << word << ", Position: " << position << ", Color: " << info.color << ", String: " << info.s << ", Strand: " << std::to_string(info.fwd) << std::endl;
+              if (info.fwd) {
+                int middle_len = info.rule;
+                int middle_pos = position+word.length();
+                size_t end_pos = middle_pos+middle_len+info.s.length();
+                if (end_pos <= len) {
+                  if (middle_len == 0 || strncmp(corpus+(end_pos-info.s.length()), info.s.c_str(), info.s.length()) == 0) {
+                    // Check if the middle is not zero
+                    const char* c = corpus+middle_pos;
+                    bool non_ATCG = false;
+                    for (size_t i_c = 0; i_c < middle_len; c++, i_c++) {
+                      // Debug:
+                      // TODO: Check if a non-ATCG exists
+                      if (*c != 'A' && *c != 'T' && *c != 'C' && *c != 'G' && *c != 'a' && *c != 't' && *c != 'c' && *c != 'g') {
+                        non_ATCG = true;
+                      }
+                      std::cout << (*c);
+                    }
+                    // Debug:
+                    if (!non_ATCG) {
+                      std::cout << "\n^Success FWD match" << std::endl;
+                    }
+                    // TODO: Add to struct in hashmap
+                  }
+                }
+              } else {
+                // TODO: Handle the rev
+              }
             } else {
               throw std::runtime_error("String search corrupted; discrepancy with hash map");
             }
@@ -128,7 +155,7 @@ void AhoCorasick::add(const std::string& contig, uint16_t color) {
   ContigInfo info;
   info.color = color;
   info.s = contig.substr(contig.length()-flank);
-  info.rule = 0;
+  info.rule = (contig.size() % 2 != 0);
   info.fwd = true;
   infomap[word] = info;
   insert(word, dictionary_index + 1); // Adjust index by 1 to avoid multiplication by 0
