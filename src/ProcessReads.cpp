@@ -72,6 +72,9 @@ int64_t ProcessReads(MasterProcessor& MP, const  ProgramOptions& opt) {
 /** -- read processors -- **/
 
 void MasterProcessor::processContigs() {
+  
+  numreads = 0;
+  curr_readbatch_id = 0;
 
   // start worker threads
   
@@ -92,6 +95,8 @@ void MasterProcessor::processContigs() {
 
 void MasterProcessor::processReads() {
   
+  numreads = 0;
+  curr_readbatch_id = 0;
   readSeqs = true;
   ac.init();
   
@@ -243,6 +248,9 @@ void ReadProcessor::processBuffer() {
     for (int j = 0; j < jmax; j++) {
       s[j] = seqs[i+j].first;
       l[j] = seqs[i+j].second;
+      // DEBUG:
+      std::cout << std::to_string(i) << ": " << std::string(s[j], l[j]) << std::endl;
+      mp.ac.searchInCorpus(s[j], l[j]);
     }
     i += incf;
     numreads++;
@@ -278,8 +286,6 @@ void ReadProcessor::processBufferContigs() {
       std::cerr.flush();
     }
   }
-  
-  exit(0); // TODO: remove
 }
 
 void ReadProcessor::clear() {

@@ -87,7 +87,16 @@ void AhoCorasick::search(const char* corpus, size_t len) {
             int position = i - static_cast<int>(word.length()) + 1;
             
             // Debug:
-            //std::cout << "Found occurrence of word: " << word << " at position: " << position << std::endl;
+            std::cout << "Found occurrence of word: " << word << " at position: " << position << std::endl;
+            
+            auto it = infomap.find(word);
+            if (it != infomap.end()) {
+              auto info = it->second;
+              // Debug:
+              std::cout << "Color: " << info.color << ", String: " << info.s << ", Strand: " << std::to_string(info.fwd) << std::endl;
+            } else {
+              throw std::runtime_error("String search corrupted; discrepancy with hash map");
+            }
           }
         }
         temp = temp->fail;
