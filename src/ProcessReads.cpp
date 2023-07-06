@@ -5,7 +5,6 @@
 #include "ProcessReads.h"
 #include "kseq.h"
 #include <unordered_set>
-#include "StringSearch.h"
 
 std::string pretty_num(size_t num) {
   auto s = std::to_string(num);
@@ -94,6 +93,7 @@ void MasterProcessor::processContigs() {
 void MasterProcessor::processReads() {
   
   readSeqs = true;
+  ac.init();
   
   // start worker threads
   
@@ -266,7 +266,8 @@ void ReadProcessor::processBufferContigs() {
   for (int i = 0; i + incf < seqs.size(); i++) {
     for (int j = 0; j < jmax; j++) {
       // Debug:
-      std::cout << std::string(names[i+j].first, names[i+j].second) << " " << std::string(s[j], l[j]) << std::endl;
+      // std::cout << std::string(names[i+j].first, names[i+j].second) << " " << std::string(seqs[i+j].first, seqs[i+j].second) << std::endl;
+      mp.ac.add(seqs[i+j].first, std::atoi(std::string(names[i+j].first, names[i+j].second).c_str()));
     }
     i += incf;
     numreads++;

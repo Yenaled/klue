@@ -1,4 +1,24 @@
 #include "StringSearch.h"
+#include <stdexcept>
+
+std::string revcomp(const std::string s) {
+  std::string r(s);
+  std::transform(s.rbegin(), s.rend(), r.begin(), [](char c) {
+    switch(c) {
+    case 'A': return 'T';
+    case 'C': return 'G';
+    case 'G': return 'C';
+    case 'T': return 'A';
+    case 'a': return 'T';
+    case 'c': return 'G';
+    case 'g': return 'C';
+    case 't': return 'A';
+    default: return 'N';
+    }
+    return 'N';
+  });
+  return r;
+}
 
 TrieNode* AhoCorasick::createNewNode() {
   TrieNode* node = new TrieNode;
@@ -78,13 +98,47 @@ void AhoCorasick::search(const char* corpus, size_t len) {
   }
 }
 
-AhoCorasick::AhoCorasick(const std::vector<std::string>& dictionary) {
+AhoCorasick::AhoCorasick() {
   root = createNewNode();
-  
-  for (int i = 0; i < dictionary.size(); ++i)
-    insert(dictionary[i], i + 1);  // Adjust index by 1 to avoid multiplication by 0
-  
+  dictionary_index = 0;
+  initialized = false;
+}
+
+void AhoCorasick::add(const std::string& contig, uint16_t color) {
+  if (initialized) {
+    throw std::runtime_error("String search already initialized; cannot add");
+    return;
+  }
+  int flank;
+  if (contig.size() % 2 == 0) {
+    flank = contig.size() / 2;
+  } else {
+    flank = (contig.size() - 1) / 2;
+  }
+  std::string word = contig.substr(0, flank);
+  ContigInfo info;
+  info.color = color;
+  info.s = contig.substr(contig.length()-flank);
+  info.rule = 0;
+  info.fwd = true;
+  infomap[word] = info;
+  insert(word, dictionary_index + 1); // Adjust index by 1 to avoid multiplication by 0
+  dictionary_index++;
+  word = revcomp(word);
+  info.s = revcomp(info.s);
+  info.fwd = false;
+  infomap[word] = info;
+  insert(word, dictionary_index + 1); // Insert the reverse complement
+  dictionary_index++;
+}
+
+void AhoCorasick::init() {
+  if (initialized) {
+    throw std::runtime_error("String search already initialized; cannot initialize again");
+    return;
+  }
   buildFailureLinks();
+  initialized = true;
 }
 
 AhoCorasick::~AhoCorasick() {
@@ -92,14 +146,9 @@ AhoCorasick::~AhoCorasick() {
 }
 
 void AhoCorasick::searchInCorpus(const char* corpus, size_t len) {
+  if (!initialized) {
+    throw std::runtime_error("String search not initialized; cannot do search");
+    return;
+  }
   search(corpus, len);
 }
-
-// Sample usage:
-
-/*
- std::vector<std::string> dictionary = { "he", "she", "his", "hers","a","abc","ab" };
- std::string corpus = "ushershehisherabhehehesheisherhabcehe";
- AhoCorasick ac(dictionary);
- ac.searchInCorpus(corpus.c_str(), corpus.length());
- */

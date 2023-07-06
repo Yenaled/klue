@@ -14,6 +14,7 @@
 #include <mutex>
 #include <atomic>
 #include <condition_variable>
+#include "StringSearch.h"
 
 class MasterProcessor;
 
@@ -119,6 +120,8 @@ public:
   size_t bufsize;
   int nfiles;
   int curr_readbatch_id;
+  
+  AhoCorasick ac;
   
   void processReads();
   void processContigs();
