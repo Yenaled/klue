@@ -94,7 +94,7 @@ void AhoCorasick::processWord(const char* corpus, size_t len, const std::string&
         }
       }
     }
-    // TODO: implement other features (other flanks); fix read processor to allow multiple fastas, etc.
+    // TODO: implement other features (other flanks)
     if ((!((found_fwd && info.fwd) || (!found_fwd && !info.fwd)) || is_palindrome)) {
       int start_pos = position-middle_len-info_s.length();
       // Either we found it in the wrong way but it matches contig; e.g. we found TTTT, but AAAA is hashmap'd and is fwd which means we have to rev

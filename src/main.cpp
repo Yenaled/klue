@@ -169,7 +169,7 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
 void ParseOptionsRefine(int argc, char **argv, ProgramOptions& opt) {
   int verbose_flag = 0;
   int pipe_flag = 0;
-  const char *opt_string = "o:i:I:t:r:p";
+  const char *opt_string = "o:i:I:t:r:m:p";
   static struct option long_options[] = {
     // long args
     {"verbose", no_argument, &verbose_flag, 1},

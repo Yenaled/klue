@@ -44,8 +44,8 @@ int64_t ProcessReads(MasterProcessor& MP, const  ProgramOptions& opt) {
   }
   MP.processContigs();
   numreads = MP.numreads;
-  std::cerr << std::endl << "done " << std::endl;
   if (MP.verbose && MP.rangefilteredcount > 0) {
+    std::cerr << std::endl << "done " << std::endl;
     std::cerr << "* " << MP.rangefilteredcount << " contigs filtered out due to length" << std::endl;
   }
   if (MP.verbose) {
@@ -410,16 +410,17 @@ bool FastqSequenceReader::fetchSequences(char *buf, const int limit, std::vector
       }
     }
     // the file is open and we have read into seq1 and seq2
-    bool all_l = true;
     int bufadd = nfiles;
+    int num_finished = 0;
     for (int i = 0; i < nfiles; i++) {
-      all_l = all_l && l[i] >= 0;
+      if (l[i] < 0) num_finished++;
       bufadd += l[i]; // includes seq
     }
-    if (all_l) {      
+    if (num_finished != nfiles) {      
       // fits into the buffer
       if (full) {
         for (int i = 0; i < nfiles; i++) {
+          if (l[i] < 0) continue;
           nl[i] = seq[i]->name.l + (comments ? seq[i]->comment.l+1 : 0);
           bufadd += nl[i]; // includes name
           //bufadd += l[i]; // include qual
@@ -437,6 +438,7 @@ bool FastqSequenceReader::fetchSequences(char *buf, const int limit, std::vector
         }
         
         for (int i = 0; i < nfiles; i++) {
+          if (l[i] < 0) continue;
           char *pi = buf + bufpos;
           memcpy(pi, seq[i]->seq.s, l[i]+1);
           bufpos += l[i]+1;
