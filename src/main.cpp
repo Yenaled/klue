@@ -539,6 +539,7 @@ int main(int argc, char *argv[]) {
         usageRefine();
         exit(1);
       } else {
+        if (!opt.stream_out) opt.verbose = true;
         MasterProcessor MP(opt);
         int numreads = ProcessReads(MP, opt);
         FILE* out;

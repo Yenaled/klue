@@ -44,12 +44,19 @@ int64_t ProcessReads(MasterProcessor& MP, const  ProgramOptions& opt) {
   }
   MP.processContigs();
   numreads = MP.numreads;
-  if (MP.verbose) {
-    std::cerr << std::endl << "done " << std::endl;
+  std::cerr << std::endl << "done " << std::endl;
+  if (MP.verbose && MP.rangefilteredcount > 0) {
+    std::cerr << "* " << MP.rangefilteredcount << " contigs filtered out due to length" << std::endl;
   }
   if (MP.verbose) {
     std::cerr << "* processed " << pretty_num(numreads) << " contigs";
     std::cerr << std::endl;
+  }
+  
+  MP.numcontigs = numreads;
+  
+  if (MP.verbose) {
+    std::cerr << "* processing the sequences ..."; std::cerr.flush();
   }
   MP.processReads();
   numreads = MP.numreads;
@@ -141,9 +148,11 @@ void MasterProcessor::update(int n,
 
 void MasterProcessor::writeContigs(FILE* out, int min_colors_found) {
   //fwrite(ostr.c_str(), 1, ostr_len, out);
+  size_t i = 0;
   for (const auto& entry : ac.infomap) {
     const auto& info = entry.second;
     if (info.colors_found.size() >= min_colors_found) {
+      i++;
       std::string header = ">" + std::to_string(info.color);
       fwrite(header.c_str(), sizeof(char), header.length(), out);
       fwrite("\n", sizeof(char), 1, out);
@@ -153,6 +162,9 @@ void MasterProcessor::writeContigs(FILE* out, int min_colors_found) {
     }
     // Debug:
     // std::cout << "DEBUG: " << info.s << " colors_found=" << info.colors_found.size() << " " << std::endl;
+  }
+  if (verbose) {
+    std::cerr << "* " << i << " contigs retained and written to output" << std::endl;
   }
 }
 
@@ -276,6 +288,8 @@ void ReadProcessor::processBufferContigs() {
       uint32_t len = seqs[i+j].second;
       if (len >= rb && len <= re) {
         mp.ac.add(seqs[i+j].first, std::atoi(std::string(names[i+j].first, names[i+j].second).c_str()));
+      } else {
+        mp.rangefilteredcount++;
       }
     }
     i += incf;

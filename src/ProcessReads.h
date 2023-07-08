@@ -85,7 +85,7 @@ public:
 class MasterProcessor {
 public:
   MasterProcessor (const ProgramOptions& opt)
-    : opt(opt), numreads(0), bufsize(1ULL<<23), curr_readbatch_id(0) { 
+    : opt(opt), numreads(0), numcontigs(0), bufsize(1ULL<<23), curr_readbatch_id(0) { 
 
     readSeqs = false;
     SR = new FastqSequenceReader(opt, opt.transfasta);
@@ -94,6 +94,7 @@ public:
     inSR = new FastqSequenceReader(opt, in_files);
     verbose = opt.verbose;
     nfiles = opt.transfasta.size();
+    rangefilteredcount = 0;
   }
   
   ~MasterProcessor() {
@@ -112,10 +113,11 @@ public:
   FastqSequenceReader *inSR; // Reading the input contigs FASTA
 
   const ProgramOptions& opt;
-  int64_t numreads;
+  int64_t numreads, numcontigs;
   size_t bufsize;
   int nfiles;
   int curr_readbatch_id;
+  std::atomic<int> rangefilteredcount;
   
   AhoCorasick ac;
   
