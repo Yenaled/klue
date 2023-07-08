@@ -41,6 +41,7 @@ private:
   void insert(const std::string& word, int index);
   void buildFailureLinks();
   void search(const char* corpus, size_t len, std::vector<ContigInfo*>& info_vec);
+  void processWord(const char* corpus, size_t len, const std::string& word, int position, std::vector<ContigInfo*>& info_vec);
 
 public:
   AhoCorasick();

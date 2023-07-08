@@ -268,12 +268,18 @@ void ReadProcessor::processBufferContigs() {
   nfiles = 1; //nfiles = mp.nfiles;
   incf = nfiles-1;
   jmax = nfiles;
+  uint32_t rb = std::max(mp.opt.distinguish_range_begin,0); // range begin filter
+  uint32_t re = mp.opt.distinguish_range_end == 0 ? rb : std::max(mp.opt.distinguish_range_end,0); // range end filter
+  if (rb == 0 && re == 0) re = std::numeric_limits<uint32_t>::max();
 
   for (int i = 0; i + incf < seqs.size(); i++) {
     for (int j = 0; j < jmax; j++) {
       // Debug:
       // std::cout << std::string(names[i+j].first, names[i+j].second) << " " << std::string(seqs[i+j].first, seqs[i+j].second) << std::endl;
-      mp.ac.add(seqs[i+j].first, std::atoi(std::string(names[i+j].first, names[i+j].second).c_str()));
+      uint32_t len = seqs[i+j].second;
+      if (len >= rb && len <= re) {
+        mp.ac.add(seqs[i+j].first, std::atoi(std::string(names[i+j].first, names[i+j].second).c_str()));
+      }
     }
     i += incf;
     numreads++;

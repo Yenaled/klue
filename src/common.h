@@ -9,6 +9,8 @@
 #include <vector>
 #include <iostream>
 #include <unordered_map>
+#include <algorithm>
+#include <limits>
 #include "kseq.h"
 
 #if defined(_MSVC_LANG)
