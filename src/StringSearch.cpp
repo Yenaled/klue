@@ -1,25 +1,6 @@
 #include "StringSearch.h"
 #include <stdexcept>
 
-std::string revcomp(const std::string s) {
-  std::string r(s);
-  std::transform(s.rbegin(), s.rend(), r.begin(), [](char c) {
-    switch(c) {
-    case 'A': return 'T';
-    case 'C': return 'G';
-    case 'G': return 'C';
-    case 'T': return 'A';
-    case 'a': return 'T';
-    case 'c': return 'G';
-    case 'g': return 'C';
-    case 't': return 'A';
-    default: return 'N';
-    }
-    return 'N';
-  });
-  return r;
-}
-
 TrieNode* AhoCorasick::createNewNode() {
   TrieNode* node = new TrieNode;
   return node;
@@ -77,18 +58,19 @@ void AhoCorasick::processWord(const char* corpus, size_t len, const std::string&
       throw std::runtime_error("String search corrupted; discrepancy with position");
     }
     int flank;
-    auto& contig = info.s;
-    if (contig.size() % 2 == 0) {
-      flank = contig.size() / 2;
+    auto& contig_substr = info.s;
+    auto contig_size = contig_substr.length() + word.length();
+    if (contig_size % 2 == 0) {
+      flank = contig_size / 2;
     } else {
-      flank = (contig.size() - 1) / 2;
+      flank = (contig_size - 1) / 2;
     }
-    auto info_s = contig.substr(contig.length()-flank);
+    bool is_palindrome = (word == word_r);
+    bool found_fwd = (word == (lex ? word : word_r));
+    auto info_s = ((found_fwd == info.fwd ? word : word_r)+contig_substr).substr(contig_size-flank);
     // Debug:
     std::cout << "Word: " << word << ", Position: " << position << ", Color: " << info.color << ", String: " << info_s << ", Strand: " << std::to_string(info.fwd) << std::endl;
     int middle_len = info.rule;
-    bool is_palindrome = (word == word_r);
-    bool found_fwd = (word == (lex ? word : word_r));
     bool success = false;
     if ((found_fwd && info.fwd) || (!found_fwd && !info.fwd) || is_palindrome) {
       int middle_pos = position+word.length();
@@ -197,7 +179,7 @@ void AhoCorasick::add(const std::string& contig, uint16_t color) {
   std::string word = contig.substr(0, flank);
   ContigInfo info;
   info.color = color;
-  info.s = contig;
+  info.s = contig.substr(flank);
   info.rule = (contig.size() % 2 != 0);
   insert(word, dictionary_index + 1); // Adjust index by 1 to avoid multiplication by 0
   dictionary_index++;

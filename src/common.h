@@ -79,6 +79,8 @@ std::string pretty_num(int num);
 #define KSEQ_INIT_READY
 KSEQ_INIT(gzFile, gzread)
 #endif
+  
+extern std::string revcomp(const std::string& s);
 
 
 #endif // KURE_COMMON_H
