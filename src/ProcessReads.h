@@ -94,12 +94,9 @@ public:
     inSR = new FastqSequenceReader(opt, in_files);
     verbose = opt.verbose;
     nfiles = opt.transfasta.size();
-    auto f = opt.distinguish_output_fasta;
-    out = fopen(f.c_str(), "wb");
   }
   
   ~MasterProcessor() {
-    fclose(out);
     if (SR != nullptr) delete SR;
     if (inSR != nullptr) delete inSR;
   }
@@ -107,8 +104,7 @@ public:
   std::mutex reader_lock;
   std::mutex writer_lock;
   std::condition_variable cv;
-  
-  FILE* out;
+
   bool verbose;
   bool readSeqs; // If we should start reading FASTA sequences, not contigs
   
@@ -130,11 +126,9 @@ public:
               std::vector<std::pair<const char*, int>>& names,
               std::vector<std::pair<const char*, int>>& quals,
               std::vector<uint32_t>& flags,
+              std::vector<std::vector<ContigInfo*> >& info_vecs,
               int readbatch_id);
-  void writeOutput(std::vector<std::pair<const char*, int>>& seqs,
-                   std::vector<std::pair<const char*, int>>& names,
-                   std::vector<std::pair<const char*, int>>& quals,
-                   std::vector<uint32_t>& flags);
+  void writeContigs(FILE* out, int min_colors_found);
 };
 
 class ReadProcessor {
@@ -155,6 +149,7 @@ public:
   
   bool full;
   bool comments;
+  std::vector<std::vector<ContigInfo*> > info_vecs;
   
   /*std::vector<std::vector<int>> newIDs;
    std::vector<std::vector<int>> IDs;*/

@@ -5,13 +5,14 @@
 #include <vector>
 #include <queue>
 #include <unordered_map>
+#include <unordered_set>
 
 struct ContigInfo {
-  uint16_t color; // Color ID
+  int16_t color; // Color ID of contig
   std::string s; // Holds more sequence info
   uint8_t rule; // How to process the sequence when found
   bool fwd; // Strandedness
-  // ATAT = palindrome; could be ATATNCGCA or could be TGCGNATAT
+  std::unordered_set<int16_t> colors_found; // How many colors (sequence files) it's found in
 };
 
 struct TrieNode {
@@ -32,21 +33,23 @@ struct TrieNode {
 class AhoCorasick {
 private:
   TrieNode* root;
-  std::unordered_map<std::string, ContigInfo> infomap;
   int dictionary_index;
   bool initialized;
 
   TrieNode* createNewNode();
   void insert(const std::string& word, int index);
   void buildFailureLinks();
-  void search(const char* corpus, size_t len);
+  void search(const char* corpus, size_t len, std::vector<ContigInfo*>& info_vec);
 
 public:
   AhoCorasick();
   ~AhoCorasick();
-  void searchInCorpus(const char* corpus, size_t len);
+  AhoCorasick( const AhoCorasick& ) = delete;
+  AhoCorasick& operator=( const AhoCorasick& ) = delete;
+  void searchInCorpus(const char* corpus, size_t len, std::vector<ContigInfo*>& info_vec);
   void add(const std::string& contig, uint16_t color);
   void init();
+  std::unordered_map<std::string, ContigInfo> infomap;
 };
 
 #endif // KURE_STRINGSEARCH_H

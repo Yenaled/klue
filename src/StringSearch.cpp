@@ -67,7 +67,7 @@ void AhoCorasick::buildFailureLinks() {
   }
 }
 
-void AhoCorasick::search(const char* corpus, size_t len) {
+void AhoCorasick::search(const char* corpus, size_t len, std::vector<ContigInfo*>& info_vec) {
   TrieNode* curr = root;
   
   for (int i = 0; i < len; ++i) {
@@ -86,40 +86,72 @@ void AhoCorasick::search(const char* corpus, size_t len) {
             const std::string& word = temp->matchedWords[j];
             int position = i - static_cast<int>(word.length()) + 1;
 
-            auto it = infomap.find(word);
+            const std::string word_r = revcomp(word);
+            bool lex = (word < word_r);
+            auto it = infomap.find(lex ? word : word_r);
             if (it != infomap.end()) {
-              auto info = it->second;
+              auto& info = it->second;
               if (strncmp(corpus+position, word.c_str(), word.length()) != 0) { // Sanity check
                 throw std::runtime_error("String search corrupted; discrepancy with position");
               }
               // Debug:
               std::cout << "Word: " << word << ", Position: " << position << ", Color: " << info.color << ", String: " << info.s << ", Strand: " << std::to_string(info.fwd) << std::endl;
-              if (info.fwd) {
-                int middle_len = info.rule;
+              int middle_len = info.rule;
+              bool is_palindrome = (word == word_r);
+              bool found_fwd = (word == (lex ? word : word_r));
+              bool success = false;
+              if ((found_fwd && info.fwd) || (!found_fwd && !info.fwd) || is_palindrome) {
                 int middle_pos = position+word.length();
-                size_t end_pos = middle_pos+middle_len+info.s.length();
+                int end_pos = middle_pos+middle_len+info.s.length();
                 if (end_pos <= len) {
-                  if (middle_len == 0 || strncmp(corpus+(end_pos-info.s.length()), info.s.c_str(), info.s.length()) == 0) {
-                    // Check if the middle is not zero
+                  if (strncmp(corpus+(end_pos-info.s.length()), info.s.c_str(), info.s.length()) == 0) {
                     const char* c = corpus+middle_pos;
                     bool non_ATCG = false;
                     for (size_t i_c = 0; i_c < middle_len; c++, i_c++) {
                       // Debug:
-                      // TODO: Check if a non-ATCG exists
                       if (*c != 'A' && *c != 'T' && *c != 'C' && *c != 'G' && *c != 'a' && *c != 't' && *c != 'c' && *c != 'g') {
                         non_ATCG = true;
                       }
-                      std::cout << (*c);
+                      std::cout << (*c); // Debug
                     }
                     // Debug:
                     if (!non_ATCG) {
-                      std::cout << "\n^Success FWD match" << std::endl;
+                      success = true;
+                      std::cout << "\n^Success FWD match" << std::endl; // Debug
                     }
-                    // TODO: Add to struct in hashmap
                   }
                 }
-              } else {
-                // TODO: Handle the rev
+              }
+              // TODO: put original string in ContigInfo? TODO: put original string on heap storage? TODO: Put key string in splitcode's SeqString? Robin hood? clever way to handle counts (return pointers)?
+              if ((!((found_fwd && info.fwd) || (!found_fwd && !info.fwd)) || is_palindrome)) {
+                int start_pos = position-middle_len-info.s.length();
+                // Either we found it in the wrong way but it matches contig; e.g. we found TTTT, but AAAA is hashmap'd and is fwd which means we have to rev
+                // Or we found it in the right way but it doesn't match contig; e.g. we found TTTT and TTTT is hashmap'd but it's not fwd
+                // Either way: We need to reverse complement the other flank!
+                if (start_pos >= 0) {
+                  std::string s_rev = revcomp(info.s);
+                  if (strncmp(corpus+start_pos, s_rev.c_str(), info.s.length()) == 0) {
+                    const char* c = corpus+start_pos+info.s.length();
+                    bool non_ATCG = false;
+                    for (size_t i_c = 0; i_c < middle_len; c++, i_c++) {
+                      if (*c != 'A' && *c != 'T' && *c != 'C' && *c != 'G' && *c != 'a' && *c != 't' && *c != 'c' && *c != 'g') {
+                        non_ATCG = true;
+                      }
+                      std::cout << (*c); // Debug
+                    }
+                    if (!non_ATCG) {
+                      success = true;
+                      std::cout << "\n^Success REV match" << std::endl; // Debug
+                    }
+                  }
+                }
+              }
+              if (success) {
+                int sz = info_vec.size();
+                if (sz >= 4096) {
+                  info_vec.reserve(sz*1.2); // grow slowly in capacity
+                }
+                info_vec.push_back(&info);
               }
             } else {
               throw std::runtime_error("String search corrupted; discrepancy with hash map");
@@ -156,15 +188,13 @@ void AhoCorasick::add(const std::string& contig, uint16_t color) {
   info.color = color;
   info.s = contig.substr(contig.length()-flank);
   info.rule = (contig.size() % 2 != 0);
-  info.fwd = true;
-  infomap[word] = info;
   insert(word, dictionary_index + 1); // Adjust index by 1 to avoid multiplication by 0
   dictionary_index++;
-  word = revcomp(word);
-  info.s = revcomp(info.s);
-  info.fwd = false;
-  infomap[word] = info;
-  insert(word, dictionary_index + 1); // Insert the reverse complement
+  std::string word_r = revcomp(word);
+  bool lex = (word < word_r); // We want to index the canonical (i.e. lexicographically smaller) word
+  info.fwd = lex; // If we're storing the sequence as-is (i.e. the non-reverse-complemented sequence is the canonical one)
+  infomap[lex ? word : word_r] = info; // Index into hash map
+  insert(word_r, dictionary_index + 1); // Insert the reverse complement
   dictionary_index++;
 }
 
@@ -181,10 +211,10 @@ AhoCorasick::~AhoCorasick() {
   delete root;
 }
 
-void AhoCorasick::searchInCorpus(const char* corpus, size_t len) {
+void AhoCorasick::searchInCorpus(const char* corpus, size_t len, std::vector<ContigInfo*>& info_vec) {
   if (!initialized) {
     throw std::runtime_error("String search not initialized; cannot do search");
     return;
   }
-  search(corpus, len);
+  search(corpus, len, info_vec);
 }

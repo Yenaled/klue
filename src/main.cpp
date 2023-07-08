@@ -160,6 +160,7 @@ void ParseOptionsRefine(int argc, char **argv, ProgramOptions& opt) {
     {"inner", required_argument, 0, 'I'},
     {"threads", required_argument, 0, 't'},
     {"range", required_argument, 0, 'r'},
+    {"min", required_argument, 0, 'm'},
     {0,0,0,0}
   };
   int c;
@@ -180,6 +181,10 @@ void ParseOptionsRefine(int argc, char **argv, ProgramOptions& opt) {
     }
     case 'p': {
       pipe_flag = 1;
+      break;
+    }
+    case 'm': {
+      stringstream(optarg) >> opt.min_found_colors;
       break;
     }
     case 'i': {
@@ -444,6 +449,7 @@ void usageRefine() {
        << "-I, --inner=INT             The length of the inner region between two flanking regions of a contig" << endl
        << "-r, --range=INT-INT         Set the range of of length of output sequences (format: begin-end)" << endl
        << "-t, --threads=INT           Number of threads to use (default: 1)" << endl
+       << "-m, --min=INT               Minimum number of files contig must be found in (default: number of FASTA-files)" << endl
        << endl;
   
 }
@@ -515,7 +521,17 @@ int main(int argc, char *argv[]) {
       } else {
         MasterProcessor MP(opt);
         int numreads = ProcessReads(MP, opt);
+        FILE* out;
+        auto f = opt.distinguish_output_fasta;
+        if (opt.stream_out) {
+          out = stdout;
+        } else {
+          out = fopen(f.c_str(), "wb");
+        }
+        MP.writeContigs(out, opt.min_found_colors < 0 ? opt.transfasta.size() : opt.min_found_colors);
+        fflush(out);
         fflush(stdout);
+        fclose(out);
       }
     } else {
       cerr << "Error: invalid command " << cmd << endl;

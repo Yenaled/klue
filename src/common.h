@@ -41,6 +41,7 @@ struct ProgramOptions {
   std::string input_fasta_contig;
   int k;
   int g;
+  int min_found_colors;
   bool stream_out;
   bool distinguish_all_but_one_color;
   bool distinguish_union;
@@ -59,7 +60,8 @@ ProgramOptions() :
   distinguish_all_but_one_color(false),
   distinguish_union(false),
   distinguish_range_begin(0),
-  distinguish_range_end(0)
+  distinguish_range_end(0),
+  min_found_colors(-1)
   {}
 };
 

@@ -121,44 +121,38 @@ void MasterProcessor::update(int n,
                              std::vector<std::pair<const char*, int>>& names,
                              std::vector<std::pair<const char*, int>>& quals,
                              std::vector<uint32_t>& flags,
+                             std::vector<std::vector<ContigInfo*> >& info_vecs,
                              int readbatch_id) {
   // acquire the writer lock
   std::unique_lock<std::mutex> lock(this->writer_lock);
   
+  // Iterate through info_vecs and update its counts and color book-keeping
+  for (int color = 0; color < info_vecs.size(); color++) {
+    for (auto &info_ptr : info_vecs[color]) {
+      (*info_ptr).colors_found.insert(color);
+    }
+  }
 
   while (readbatch_id != curr_readbatch_id) {
     cv.wait(lock, [this, readbatch_id]{ return readbatch_id == curr_readbatch_id; });
   }
-  writeOutput(seqs, names, quals, flags);
-  
+
   numreads += n;
   curr_readbatch_id++;
   lock.unlock(); // releases the lock
   cv.notify_all(); // Alert all other threads to check their readbatch_id's!
 }
 
-void MasterProcessor::writeOutput(std::vector<std::pair<const char*, int>>& seqs,
-                                  std::vector<std::pair<const char*, int>>& names,
-                                  std::vector<std::pair<const char*, int>>& quals,
-                                  std::vector<uint32_t>& flags) {
-  // Write out fastq
-  int incf, jmax;
-  incf = nfiles-1;
-  jmax = nfiles;
-  
-  std::vector<const char*> s(jmax, nullptr);
-  std::vector<const char*> n(jmax, nullptr);
-  std::vector<const char*> nl(jmax, nullptr);
-  std::vector<const char*> q(jmax, nullptr);
-  std::vector<int> l(jmax,0);
-  char start_char = '>';
-
-  size_t readnum = 0;
-  for (int i = 0; i + incf < seqs.size(); i++, readnum++) {
-    for (int j = 0; j < jmax; j++) {
-      // TODO:
+void MasterProcessor::writeContigs(FILE* out, int min_colors_found) {
+  //fwrite(ostr.c_str(), 1, ostr_len, out);
+  for (const auto& entry : ac.infomap) {
+    const auto& info = entry.second;
+    if (info.colors_found.size() >= min_colors_found) {
+      fwrite(info.s.c_str(), sizeof(char), info.s.length(), out);
+      fwrite("\n", sizeof(char), 1, out);
     }
-    i += incf;
+    // Debug:
+    // std::cout << "DEBUG: " << info.s << " colors_found=" << info.colors_found.size() << " " << std::endl;
   }
 }
 
@@ -228,7 +222,7 @@ void ReadProcessor::operator()() {
     
     // update the results, MP acquires the lock
     int nfiles = SR->nfiles;
-    mp.update(seqs.size() / nfiles, seqs, names, quals, flags, readbatch_id);
+    mp.update(seqs.size() / nfiles, seqs, names, quals, flags, info_vecs, readbatch_id);
     clear();
   }
 }
@@ -240,6 +234,7 @@ void ReadProcessor::processBuffer() {
   nfiles = mp.nfiles;
   incf = nfiles-1;
   jmax = nfiles;
+  info_vecs.resize(nfiles);
   
   std::vector<const char*> s(jmax, nullptr);
   std::vector<int> l(jmax,0);
@@ -249,8 +244,8 @@ void ReadProcessor::processBuffer() {
       s[j] = seqs[i+j].first;
       l[j] = seqs[i+j].second;
       // DEBUG:
-      std::cout << std::to_string(i) << ": " << std::string(s[j], l[j]) << std::endl;
-      mp.ac.searchInCorpus(s[j], l[j]);
+      //std::cout << std::to_string(i) << ": " << std::string(s[j], l[j]) << std::endl;
+      mp.ac.searchInCorpus(s[j], l[j], info_vecs[j]);
     }
     i += incf;
     numreads++;
@@ -290,6 +285,7 @@ void ReadProcessor::processBufferContigs() {
 
 void ReadProcessor::clear() {
   memset(buffer,0,bufsize);
+  info_vecs.clear();
 }
 
 /** -- sequence readers -- **/
