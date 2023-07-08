@@ -94,17 +94,25 @@ void AhoCorasick::search(const char* corpus, size_t len, std::vector<ContigInfo*
               if (strncmp(corpus+position, word.c_str(), word.length()) != 0) { // Sanity check
                 throw std::runtime_error("String search corrupted; discrepancy with position");
               }
+              int flank;
+              auto& contig = info.s;
+              if (contig.size() % 2 == 0) {
+                flank = contig.size() / 2;
+              } else {
+                flank = (contig.size() - 1) / 2;
+              }
+              auto info_s = contig.substr(contig.length()-flank);
               // Debug:
-              std::cout << "Word: " << word << ", Position: " << position << ", Color: " << info.color << ", String: " << info.s << ", Strand: " << std::to_string(info.fwd) << std::endl;
+              std::cout << "Word: " << word << ", Position: " << position << ", Color: " << info.color << ", String: " << info_s << ", Strand: " << std::to_string(info.fwd) << std::endl;
               int middle_len = info.rule;
               bool is_palindrome = (word == word_r);
               bool found_fwd = (word == (lex ? word : word_r));
               bool success = false;
               if ((found_fwd && info.fwd) || (!found_fwd && !info.fwd) || is_palindrome) {
                 int middle_pos = position+word.length();
-                int end_pos = middle_pos+middle_len+info.s.length();
+                int end_pos = middle_pos+middle_len+info_s.length();
                 if (end_pos <= len) {
-                  if (strncmp(corpus+(end_pos-info.s.length()), info.s.c_str(), info.s.length()) == 0) {
+                  if (strncmp(corpus+(end_pos-info_s.length()), info_s.c_str(), info_s.length()) == 0) {
                     const char* c = corpus+middle_pos;
                     bool non_ATCG = false;
                     for (size_t i_c = 0; i_c < middle_len; c++, i_c++) {
@@ -122,16 +130,16 @@ void AhoCorasick::search(const char* corpus, size_t len, std::vector<ContigInfo*
                   }
                 }
               }
-              // TODO: put original string in ContigInfo? TODO: put original string on heap storage? TODO: Put key string in splitcode's SeqString?
+              // TODO: put original string in ContigInfo? TODO: put original string on heap storage? clean this into separate function; implement range; implement other features (other flanks); etc.
               if ((!((found_fwd && info.fwd) || (!found_fwd && !info.fwd)) || is_palindrome)) {
-                int start_pos = position-middle_len-info.s.length();
+                int start_pos = position-middle_len-info_s.length();
                 // Either we found it in the wrong way but it matches contig; e.g. we found TTTT, but AAAA is hashmap'd and is fwd which means we have to rev
                 // Or we found it in the right way but it doesn't match contig; e.g. we found TTTT and TTTT is hashmap'd but it's not fwd
                 // Either way: We need to reverse complement the other flank!
                 if (start_pos >= 0) {
-                  std::string s_rev = revcomp(info.s);
-                  if (strncmp(corpus+start_pos, s_rev.c_str(), info.s.length()) == 0) {
-                    const char* c = corpus+start_pos+info.s.length();
+                  std::string s_rev = revcomp(info_s);
+                  if (strncmp(corpus+start_pos, s_rev.c_str(), info_s.length()) == 0) {
+                    const char* c = corpus+start_pos+info_s.length();
                     bool non_ATCG = false;
                     for (size_t i_c = 0; i_c < middle_len; c++, i_c++) {
                       if (*c != 'A' && *c != 'T' && *c != 'C' && *c != 'G' && *c != 'a' && *c != 't' && *c != 'c' && *c != 'g') {
@@ -186,7 +194,7 @@ void AhoCorasick::add(const std::string& contig, uint16_t color) {
   std::string word = contig.substr(0, flank);
   ContigInfo info;
   info.color = color;
-  info.s = contig.substr(contig.length()-flank);
+  info.s = contig;
   info.rule = (contig.size() % 2 != 0);
   insert(word, dictionary_index + 1); // Adjust index by 1 to avoid multiplication by 0
   dictionary_index++;

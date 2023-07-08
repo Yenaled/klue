@@ -6,14 +6,14 @@
 #include <vector>
 #include <queue>
 #include <unordered_map>
-#include <unordered_set>
+#include <set>
 
 struct ContigInfo {
   int16_t color; // Color ID of contig
   std::string s; // Holds more sequence info
   uint8_t rule; // How to process the sequence when found
   bool fwd; // Strandedness
-  u_set_<int16_t> colors_found; // How many colors (sequence files) it's found in
+  std::set<int16_t> colors_found; // How many colors (sequence files) it's found in
 };
 
 struct TrieNode {
