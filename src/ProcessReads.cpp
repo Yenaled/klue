@@ -51,10 +51,6 @@ int64_t ProcessReads(MasterProcessor& MP, const  ProgramOptions& opt) {
     std::cerr << "* processed " << pretty_num(numreads) << " contigs";
     std::cerr << std::endl;
   }
-  
-  if (MP.verbose) {
-    std::cerr << "* processing the contigs ..."; std::cerr.flush();
-  }
   MP.processReads();
   numreads = MP.numreads;
   if (MP.verbose) {

@@ -69,7 +69,7 @@ void AhoCorasick::processWord(const char* corpus, size_t len, const std::string&
     bool found_fwd = (word == (lex ? word : word_r));
     auto info_s = ((found_fwd == info.fwd ? word : word_r)+contig_substr).substr(contig_size-flank);
     // Debug:
-    std::cout << "Word: " << word << ", Position: " << position << ", Color: " << info.color << ", String: " << info_s << ", Strand: " << std::to_string(info.fwd) << std::endl;
+    // std::cout << "Word: " << word << ", Position: " << position << ", Color: " << info.color << ", String: " << info_s << ", Strand: " << std::to_string(info.fwd) << std::endl;
     int middle_len = info.rule;
     bool success = false;
     if ((found_fwd && info.fwd) || (!found_fwd && !info.fwd) || is_palindrome) {
@@ -80,16 +80,16 @@ void AhoCorasick::processWord(const char* corpus, size_t len, const std::string&
           const char* c = corpus+middle_pos;
           bool non_ATCG = false;
           for (size_t i_c = 0; i_c < middle_len; c++, i_c++) {
-            // Debug:
             if (*c != 'A' && *c != 'T' && *c != 'C' && *c != 'G' && *c != 'a' && *c != 't' && *c != 'c' && *c != 'g') {
               non_ATCG = true;
             }
-            std::cout << (*c); // Debug
+            // Debug:
+            // std::cout << (*c); // Debug
           }
-          // Debug:
           if (!non_ATCG) {
             success = true;
-            std::cout << "\n^Success FWD match" << std::endl; // Debug
+            // Debug:
+            // std::cout << "\n^Success FWD match" << std::endl; // Debug
           }
         }
       }
@@ -109,11 +109,11 @@ void AhoCorasick::processWord(const char* corpus, size_t len, const std::string&
             if (*c != 'A' && *c != 'T' && *c != 'C' && *c != 'G' && *c != 'a' && *c != 't' && *c != 'c' && *c != 'g') {
               non_ATCG = true;
             }
-            std::cout << (*c); // Debug
+            // std::cout << (*c); // Debug
           }
           if (!non_ATCG) {
             success = true;
-            std::cout << "\n^Success REV match" << std::endl; // Debug
+            // std::cout << "\n^Success REV match" << std::endl; // Debug
           }
         }
       }
