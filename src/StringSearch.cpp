@@ -18,7 +18,6 @@ void AhoCorasick::insert(const std::string& word, int index) {
   
   curr->isEndOfWord = true;
   curr->matchedWords.push_back(word);
-  curr->positions.push_back(index);
 }
 
 void AhoCorasick::buildFailureLinks() {

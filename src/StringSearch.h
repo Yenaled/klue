@@ -6,6 +6,7 @@
 #include <vector>
 #include <queue>
 #include <unordered_map>
+#include <map>
 #include <set>
 
 struct ContigInfo {
@@ -17,11 +18,10 @@ struct ContigInfo {
 };
 
 struct TrieNode {
-  u_map_<char, TrieNode*> children;
+  std::map<char, TrieNode*> children;
   bool isEndOfWord;
   TrieNode* fail;
   std::vector<std::string> matchedWords;
-  std::vector<int> positions;
 
   TrieNode() : isEndOfWord(false), fail(nullptr) {}
 
