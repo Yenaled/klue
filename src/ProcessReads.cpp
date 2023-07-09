@@ -45,7 +45,7 @@ int64_t ProcessReads(MasterProcessor& MP, const  ProgramOptions& opt) {
   MP.processContigs();
   numreads = MP.numreads;
   if (MP.verbose && MP.rangefilteredcount > 0) {
-    std::cerr << std::endl << "done " << std::endl;
+  std::cerr << std::endl << "done " << std::endl;
     std::cerr << "* " << MP.rangefilteredcount << " contigs filtered out due to length" << std::endl;
   }
   if (MP.verbose) {
@@ -221,6 +221,11 @@ void ReadProcessor::operator()() {
       } else {
         // get new sequences
         SR->fetchSequences(buffer, bufsize, seqs, names, quals, flags, readbatch_id, full, comments);
+        if (seqs.size() == 0) { // resize buffer if overflown
+          delete[] buffer;
+          bufsize *= 2;
+          buffer = new char[bufsize];
+        }
       }
       // release the reader lock
     }

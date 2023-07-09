@@ -16,6 +16,20 @@ void AhoCorasick::insert(const std::string& word, int index) {
     curr = curr->children[c];
   }
   
+  // TODO: check threading error for contig processing
+  // TODO: reduce children to A,T,C,G (4 TrieNode* pointers)
+  // TODO: see if we can eliminate std::vector<std::string> matchedWords
+  // TODO: see if we can store DNA as 2-bits
+  // TODO: char counter (1M chars processed instead of 1M reads processed)
+  // TODO: naive dictionary lookups (if we only have no more than 3 variations)
+  // TODO: better AC implementation
+  // Alternative: Build a colored de bruijn graph of 29-mers over contigs (w/ the next 29-mer stored in node and 3-inbetween chars) and ensure the sliding window works [and remove N's]
+  // Microsatellites: k-mer must cross [f][r][r][f] entirely to be unique, put [r][r] in dictionary, and look up and extend to find [f].
+  // // GATATATATATATATATATATATATATATC; others can be shorter (e.g. GATATATC) but others can't be longer (violates uniqueness rule)
+  // // // how might the flanks be unique?
+  // // // 31-bp of AT's uniqueness = long unique in one and only short ones elsewhere; need to find the long one, extract flanking 31-mer, find flanking in others
+  // // // Contig of GGGGATATATATATATATATATATCCCC = how unique? 
+  
   curr->isEndOfWord = true;
   curr->matchedWords.push_back(word);
 }
