@@ -172,7 +172,7 @@ void MasterProcessor::writeContigs(FILE* out, int min_colors_found) {
       std::string header = ">" + std::to_string(info.color);
       fwrite(header.c_str(), sizeof(char), header.length(), out);
       fwrite("\n", sizeof(char), 1, out);
-      fwrite(info.fwd ? entry.first.toString().c_str() : entry.first.rep().toString().c_str(), sizeof(char), entry.first.k, out);
+      fwrite(info.fwd ? entry.first.toString().c_str() : entry.first.twin().toString().c_str(), sizeof(char), entry.first.k, out);
       fwrite(info.s, sizeof(char), info.l, out);
       fwrite("\n", sizeof(char), 1, out);
     }
