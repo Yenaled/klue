@@ -44,8 +44,10 @@ int64_t ProcessReads(MasterProcessor& MP, const  ProgramOptions& opt) {
   }
   MP.processContigs();
   numreads = MP.numreads;
+  if (MP.verbose) {
+    std::cerr << std::endl << "done " << std::endl;
+  }
   if (MP.verbose && MP.rangefilteredcount > 0) {
-  std::cerr << std::endl << "done " << std::endl;
     std::cerr << "* " << MP.rangefilteredcount << " contigs filtered out due to length" << std::endl;
   }
   if (MP.verbose) {
@@ -178,7 +180,7 @@ void MasterProcessor::writeContigs(FILE* out, int min_colors_found) {
     // std::cout << "DEBUG: " << info.s << " colors_found=" << info.colors_found.size() << " " << std::endl;
   }
   if (verbose) {
-    std::cerr << "* " << i << " contigs retained and written to output" << std::endl;
+    std::cerr << "* " << pretty_num(i) << " contigs retained and written to output" << std::endl;
   }
 }
 
