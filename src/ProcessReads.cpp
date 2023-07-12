@@ -110,6 +110,9 @@ void MasterProcessor::processReads() {
   
   for (int j = 0; j < nfiles; j++) {
     std::vector<std::string> _files;
+    if (verbose) {
+      std::cerr << "* Processing file #" << j << ": " << opt.transfasta[j] << std::endl;
+    }
     _files.push_back(opt.transfasta[j]);
     SR = new FastqSequenceReader(opt, _files); // New sequence reader for next file!
     for (int i = 0; i < opt.threads; i++) {
@@ -133,6 +136,7 @@ void MasterProcessor::processReads() {
 }
 
 void MasterProcessor::update(int n, 
+                             size_t b,
                              std::vector<std::pair<const char*, int>>& seqs,
                              std::vector<std::pair<const char*, int>>& names,
                              std::vector<std::pair<const char*, int>>& quals,
@@ -146,6 +150,7 @@ void MasterProcessor::update(int n,
   }
 
   numreads += n;
+  numchars += b;
   curr_readbatch_id++;
   lock.unlock(); // releases the lock
   cv.notify_all(); // Alert all other threads to check their readbatch_id's!
@@ -178,6 +183,8 @@ ReadProcessor::ReadProcessor(const ProgramOptions& opt, MasterProcessor& mp, int
   bufsize = mp.bufsize;
   buffer = new char[bufsize];
   seqs.reserve(bufsize/50);
+  numchars = 0;
+  numchars_ = 0;
   clear();
 }
 
@@ -191,7 +198,9 @@ ReadProcessor::ReadProcessor(ReadProcessor && o) :
   flags(std::move(o.flags)),
   full(o.full),
   comments(o.comments),
-  file_no(o.file_no) {
+  file_no(o.file_no),
+  numchars(o.numchars), 
+  numchars_(o.numchars_){
   buffer = o.buffer;
   o.buffer = nullptr;
   o.bufsize = 0;
@@ -244,7 +253,7 @@ void ReadProcessor::operator()() {
     
     // update the results, MP acquires the lock
     int nfiles = SR->nfiles;
-    mp.update(seqs.size() / nfiles, seqs, names, quals, flags, readbatch_id); // TODO: Can't update until the end
+    mp.update(seqs.size() / nfiles, numchars_, seqs, names, quals, flags, readbatch_id); // TODO: Can't update until the end
     clear();
   }
 }
@@ -264,16 +273,19 @@ void ReadProcessor::processBuffer() {
     for (int j = 0; j < jmax; j++) {
       s[j] = seqs[i+j].first;
       l[j] = seqs[i+j].second;
+      numchars += l[j];
+      numchars_ += l[j];
       // DEBUG:
       //std::cout << std::to_string(i) << ": " << std::string(s[j], l[j]) << std::endl;
       mp.ac.searchInCorpus(s[j], l[j], mp.info_vec);
     }
     i += incf;
     numreads++;
-    if (numreads > 0 && numreads % 1000000 == 0 && mp.verbose) {
+    if (((numreads > 0 && numreads % 1000000 == 0) || (numchars > 0 && numchars % 1000000000 == 0)) && mp.verbose) {
       numreads = 0; // reset counter
-      std::cerr << '\r' << (mp.numreads/1000000) << "M reads processed";
-      std::cerr << "         ";
+      numchars = 0; // reset counter
+      std::cerr << '\r' << (mp.numreads/1000000) << "M reads, " << (mp.numchars/1000000000) << "B bases processed";
+      std::cerr << "                          ";
       std::cerr.flush();
     }
   }
@@ -314,6 +326,7 @@ void ReadProcessor::processBufferContigs() {
 
 void ReadProcessor::clear() {
   memset(buffer,0,bufsize);
+  numchars_ = 0;
 }
 
 /** -- sequence readers -- **/

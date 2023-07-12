@@ -94,6 +94,7 @@ public:
     verbose = opt.verbose;
     nfiles = opt.transfasta.size();
     rangefilteredcount = 0;
+    numchars = 0;
   }
   
   ~MasterProcessor() {
@@ -116,6 +117,7 @@ public:
   size_t bufsize;
   int nfiles;
   int curr_readbatch_id;
+  size_t numchars, numchars_;
   std::atomic<int> rangefilteredcount;
   std::vector<ContigInfo*> info_vec;
   
@@ -124,6 +126,7 @@ public:
   void processReads();
   void processContigs();
   void update(int n,
+              size_t numchars,
               std::vector<std::pair<const char*, int>>& seqs,
               std::vector<std::pair<const char*, int>>& names,
               std::vector<std::pair<const char*, int>>& quals,
@@ -151,6 +154,7 @@ public:
   bool full;
   bool comments;
   int file_no;
+  size_t numchars, numchars_;
   
   /*std::vector<std::vector<int>> newIDs;
    std::vector<std::vector<int>> IDs;*/
