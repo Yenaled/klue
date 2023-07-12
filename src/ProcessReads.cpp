@@ -83,12 +83,14 @@ void MasterProcessor::processContigs() {
   
   std::vector<std::thread> workers;
   
-  for (int i = 0; i < opt.threads; i++) {
+  // Set number of threads to 1 because race condition when storing contigs
+  
+  for (int i = 0; i < /*opt.threads*/1; i++) {
     workers.emplace_back(std::thread(ReadProcessor(opt,*this)));
   }
     
   // let the workers do their thing
-  for (int i = 0; i < opt.threads; i++) {
+  for (int i = 0; i < /*opt.threads*/1; i++) {
     workers[i].join(); //wait for them to finish
   }
   delete inSR;
@@ -101,22 +103,32 @@ void MasterProcessor::processReads() {
   numreads = 0;
   curr_readbatch_id = 0;
   readSeqs = true;
-  ac.init();
   
   // start worker threads
   
   std::vector<std::thread> workers;
   
-  for (int i = 0; i < opt.threads; i++) {
-    workers.emplace_back(std::thread(ReadProcessor(opt,*this)));
+  for (int j = 0; j < nfiles; j++) {
+    std::vector<std::string> _files;
+    _files.push_back(opt.transfasta[j]);
+    SR = new FastqSequenceReader(opt, _files); // New sequence reader for next file!
+    for (int i = 0; i < opt.threads; i++) {
+      workers.emplace_back(std::thread(ReadProcessor(opt,*this, j)));
+    }
+    // let the workers do their thing
+    for (int i = 0; i < opt.threads; i++) {
+      workers[i].join(); //wait for them to finish
+    }
+    delete SR; // Delete current sequence reader
+    SR = nullptr;
+    // Iterate through info_vec and update its counts and color book-keeping
+    for (auto &info_ptr : info_vec) {
+      if ((*info_ptr).curr_color) {
+        (*info_ptr).colors_found++;
+        (*info_ptr).curr_color = false; // Reset it to false (accounts for the fact that the same sequence might be found multiple times in corpus)
+      }
+    }
   }
-  
-  // let the workers do their thing
-  for (int i = 0; i < opt.threads; i++) {
-    workers[i].join(); //wait for them to finish
-  }
-  delete SR;
-  SR = nullptr;
 }
 
 void MasterProcessor::update(int n, 
@@ -124,17 +136,9 @@ void MasterProcessor::update(int n,
                              std::vector<std::pair<const char*, int>>& names,
                              std::vector<std::pair<const char*, int>>& quals,
                              std::vector<uint32_t>& flags,
-                             std::vector<std::vector<ContigInfo*> >& info_vecs,
                              int readbatch_id) {
   // acquire the writer lock
   std::unique_lock<std::mutex> lock(this->writer_lock);
-  
-  // Iterate through info_vecs and update its counts and color book-keeping
-  for (int color = 0; color < info_vecs.size(); color++) {
-    for (auto &info_ptr : info_vecs[color]) {
-      (*info_ptr).colors_found.insert(color);
-    }
-  }
 
   while (readbatch_id != curr_readbatch_id) {
     cv.wait(lock, [this, readbatch_id]{ return readbatch_id == curr_readbatch_id; });
@@ -147,17 +151,16 @@ void MasterProcessor::update(int n,
 }
 
 void MasterProcessor::writeContigs(FILE* out, int min_colors_found) {
-  //fwrite(ostr.c_str(), 1, ostr_len, out);
   size_t i = 0;
   for (const auto& entry : ac.infomap) {
     const auto& info = entry.second;
-    if (info.colors_found.size() >= min_colors_found) {
+    if (info.colors_found >= min_colors_found) {
       i++;
       std::string header = ">" + std::to_string(info.color);
       fwrite(header.c_str(), sizeof(char), header.length(), out);
       fwrite("\n", sizeof(char), 1, out);
-      fwrite(info.fwd ? entry.first.c_str() : revcomp(entry.first).c_str(), sizeof(char), entry.first.length(), out);
-      fwrite(info.s.c_str(), sizeof(char), info.s.length(), out);
+      fwrite(info.fwd ? entry.first.toString().c_str() : entry.first.rep().toString().c_str(), sizeof(char), entry.first.k, out);
+      fwrite(info.s, sizeof(char), info.l, out);
       fwrite("\n", sizeof(char), 1, out);
     }
     // Debug:
@@ -168,8 +171,8 @@ void MasterProcessor::writeContigs(FILE* out, int min_colors_found) {
   }
 }
 
-ReadProcessor::ReadProcessor(const ProgramOptions& opt, MasterProcessor& mp) : 
-  mp(mp), numreads(0) {
+ReadProcessor::ReadProcessor(const ProgramOptions& opt, MasterProcessor& mp, int file_no) : 
+  mp(mp), numreads(0), file_no(file_no) {
   // initialize buffer
   bufsize = mp.bufsize;
   buffer = new char[bufsize];
@@ -186,7 +189,8 @@ ReadProcessor::ReadProcessor(ReadProcessor && o) :
   quals(std::move(o.quals)),
   flags(std::move(o.flags)),
   full(o.full),
-  comments(o.comments) {
+  comments(o.comments),
+  file_no(o.file_no) {
   buffer = o.buffer;
   o.buffer = nullptr;
   o.bufsize = 0;
@@ -239,7 +243,7 @@ void ReadProcessor::operator()() {
     
     // update the results, MP acquires the lock
     int nfiles = SR->nfiles;
-    mp.update(seqs.size() / nfiles, seqs, names, quals, flags, info_vecs, readbatch_id);
+    mp.update(seqs.size() / nfiles, seqs, names, quals, flags, readbatch_id); // TODO: Can't update until the end
     clear();
   }
 }
@@ -251,7 +255,6 @@ void ReadProcessor::processBuffer() {
   nfiles = mp.nfiles;
   incf = nfiles-1;
   jmax = nfiles;
-  info_vecs.resize(nfiles);
   
   std::vector<const char*> s(jmax, nullptr);
   std::vector<int> l(jmax,0);
@@ -262,7 +265,7 @@ void ReadProcessor::processBuffer() {
       l[j] = seqs[i+j].second;
       // DEBUG:
       //std::cout << std::to_string(i) << ": " << std::string(s[j], l[j]) << std::endl;
-      mp.ac.searchInCorpus(s[j], l[j], info_vecs[j]);
+      mp.ac.searchInCorpus(s[j], l[j], mp.info_vec);
     }
     i += incf;
     numreads++;
@@ -292,7 +295,7 @@ void ReadProcessor::processBufferContigs() {
       // std::cout << std::string(names[i+j].first, names[i+j].second) << " " << std::string(seqs[i+j].first, seqs[i+j].second) << std::endl;
       uint32_t len = seqs[i+j].second;
       if (len >= rb && len <= re) {
-        mp.ac.add(seqs[i+j].first, std::atoi(std::string(names[i+j].first, names[i+j].second).c_str()));
+        mp.ac.add(seqs[i+j].first, std::atoi(std::string(names[i+j].first, names[i+j].second).c_str())); // race condition, so this function should NOT be multithreaded
       } else {
         mp.rangefilteredcount++;
       }
@@ -310,7 +313,6 @@ void ReadProcessor::processBufferContigs() {
 
 void ReadProcessor::clear() {
   memset(buffer,0,bufsize);
-  info_vecs.clear();
 }
 
 /** -- sequence readers -- **/

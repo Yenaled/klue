@@ -88,7 +88,6 @@ public:
     : opt(opt), numreads(0), numcontigs(0), bufsize(1ULL<<23), curr_readbatch_id(0) { 
 
     readSeqs = false;
-    SR = new FastqSequenceReader(opt, opt.transfasta);
     std::vector<std::string> in_files;
     in_files.push_back(opt.input_fasta_contig);
     inSR = new FastqSequenceReader(opt, in_files);
@@ -118,6 +117,7 @@ public:
   int nfiles;
   int curr_readbatch_id;
   std::atomic<int> rangefilteredcount;
+  std::vector<ContigInfo*> info_vec;
   
   AhoCorasick ac;
   
@@ -128,14 +128,13 @@ public:
               std::vector<std::pair<const char*, int>>& names,
               std::vector<std::pair<const char*, int>>& quals,
               std::vector<uint32_t>& flags,
-              std::vector<std::vector<ContigInfo*> >& info_vecs,
               int readbatch_id);
   void writeContigs(FILE* out, int min_colors_found);
 };
 
 class ReadProcessor {
 public:
-  ReadProcessor(const ProgramOptions& opt, MasterProcessor& mp);
+  ReadProcessor(const ProgramOptions& opt, MasterProcessor& mp, int file_no = -1);
   ReadProcessor(ReadProcessor && o);
   ~ReadProcessor();
   char *buffer;
@@ -151,7 +150,7 @@ public:
   
   bool full;
   bool comments;
-  std::vector<std::vector<ContigInfo*> > info_vecs;
+  int file_no;
   
   /*std::vector<std::vector<int>> newIDs;
    std::vector<std::vector<int>> IDs;*/

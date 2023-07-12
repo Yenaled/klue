@@ -2,6 +2,7 @@
 #define KURE_STRINGSEARCH_H
 
 #include "common.h"
+#include "Kmer.hpp"
 #include <iostream>
 #include <vector>
 #include <queue>
@@ -9,39 +10,22 @@
 #include <map>
 #include <set>
 
-struct ContigInfo {
-  int16_t color; // Color ID of contig
-  std::string s; // Holds more sequence info
-  uint8_t rule; // How to process the sequence when found
-  bool fwd; // Strandedness
-  std::set<int16_t> colors_found; // How many colors (sequence files) it's found in
-};
-
-struct TrieNode {
-  std::map<char, TrieNode*> children;
-  bool isEndOfWord;
-  TrieNode* fail;
-  std::vector<std::string> matchedWords;
-
-  TrieNode() : isEndOfWord(false), fail(nullptr) {}
-
-  ~TrieNode() {
-    for (auto& kvp : children)
-      delete kvp.second;
-  }
+struct ContigInfo { // 16 bytes
+  int16_t color; // Color ID of contig = 2 bytes
+  char s[MAX_KMER_SIZE*2]; // Holds more sequence info 62 bits = 8 bytes
+  uint8_t l; // Holds sequence length = 1 byte
+  uint8_t rule; // How to process the sequence when found [padding for now]; = 1 byte
+  bool fwd; // Strandedness; = 1 byte
+  bool curr_color; // Whether it's found in current file iteration; = 1 byte
+  uint16_t colors_found; // How many colors (sequence files) it's found in; = 2 bytes
 };
 
 class AhoCorasick {
 private:
-  TrieNode* root;
   int dictionary_index;
-  bool initialized;
 
-  TrieNode* createNewNode();
-  void insert(const std::string& word, int index);
-  void buildFailureLinks();
   void search(const char* corpus, size_t len, std::vector<ContigInfo*>& info_vec);
-  void processWord(const char* corpus, size_t len, const std::string& word, int position, std::vector<ContigInfo*>& info_vec);
+  void processWord(const char* corpus, size_t len, const Kmer& km, int position, std::vector<ContigInfo*>& info_vec);
 
 public:
   AhoCorasick();
@@ -50,8 +34,7 @@ public:
   AhoCorasick& operator=( const AhoCorasick& ) = delete;
   void searchInCorpus(const char* corpus, size_t len, std::vector<ContigInfo*>& info_vec);
   void add(const std::string& contig, uint16_t color);
-  void init();
-  u_map_<std::string, ContigInfo> infomap;
+  u_map_<Kmer, ContigInfo, KmerHash> infomap;
 };
 
 #endif // KURE_STRINGSEARCH_H

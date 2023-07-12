@@ -169,7 +169,8 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
 void ParseOptionsRefine(int argc, char **argv, ProgramOptions& opt) {
   int verbose_flag = 0;
   int pipe_flag = 0;
-  const char *opt_string = "o:i:I:t:r:m:p";
+  opt.k = 29; // New default for k-mer size
+  const char *opt_string = "o:i:I:t:r:m:k:p";
   static struct option long_options[] = {
     // long args
     {"verbose", no_argument, &verbose_flag, 1},
@@ -181,6 +182,7 @@ void ParseOptionsRefine(int argc, char **argv, ProgramOptions& opt) {
     {"threads", required_argument, 0, 't'},
     {"range", required_argument, 0, 'r'},
     {"min", required_argument, 0, 'm'},
+    {"kmer-size", required_argument, 0, 'k'},
     {0,0,0,0}
   };
   int c;
@@ -205,6 +207,10 @@ void ParseOptionsRefine(int argc, char **argv, ProgramOptions& opt) {
     }
     case 'm': {
       stringstream(optarg) >> opt.min_found_colors;
+      break;
+    }
+    case 'k': {
+      stringstream(optarg) >> opt.k;
       break;
     }
     case 'i': {
@@ -352,6 +358,18 @@ bool CheckOptionsDistinguish(ProgramOptions& opt) {
 bool CheckOptionsRefine(ProgramOptions& opt) {
 
   bool ret = true;
+  
+  
+  
+  if (opt.k <= 1 || opt.k >= MAX_KMER_SIZE) {
+    cerr << "Error: invalid k-mer length " << opt.k << ", minimum is 3 and maximum is " << (MAX_KMER_SIZE -1) << endl;
+    ret = false;
+  }
+  
+  if (opt.k % 2 == 0) {
+    cerr << "Error: k needs to be an odd number" << endl;
+    ret = false;
+  }
 
   if (opt.threads <= 0) {
     cerr << "Error: invalid number of threads " << opt.threads << endl;
@@ -466,6 +484,7 @@ void usageRefine() {
        << "-i, --input=STRING         Filename for the input contig FASTA" << endl
        << "-o, --output=STRING        Filename for the output FASTA" << endl << endl
        << "Optional argument:" << endl
+       << "-k, --kmer-size=INT         k-mer (odd) length (default: 29, max value: " << (MAX_KMER_SIZE-1) << ")" << endl
        << "-I, --inner=INT             The length of the inner region between two flanking regions of a contig" << endl
        << "-r, --range=INT-INT         Set the range of of length of output sequences (format: begin-end)" << endl
        << "-t, --threads=INT           Number of threads to use (default: 1)" << endl
@@ -540,6 +559,7 @@ int main(int argc, char *argv[]) {
         exit(1);
       } else {
         if (!opt.stream_out) opt.verbose = true;
+        Kmer::set_k(opt.k);
         MasterProcessor MP(opt);
         int numreads = ProcessReads(MP, opt);
         FILE* out;
