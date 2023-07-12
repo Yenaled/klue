@@ -252,7 +252,7 @@ void ReadProcessor::operator()() {
 
     // update the results, MP acquires the lock
     int nfiles = SR->nfiles;
-    mp.update(seqs.size() / nfiles, numchars_, seqs, names, quals, flags, readbatch_id); // TODO: Can't update until the end
+    mp.update(seqs.size() / nfiles, numchars_, seqs, names, quals, flags, readbatch_id);
     clear();
   }
 }
@@ -262,8 +262,8 @@ void ReadProcessor::processBuffer() {
   
   int incf, jmax, nfiles;
   nfiles = mp.nfiles;
-  incf = nfiles-1;
-  jmax = nfiles;
+  incf = 0;
+  jmax = 1;
   
   std::vector<const char*> s(jmax, nullptr);
   std::vector<int> l(jmax,0);
