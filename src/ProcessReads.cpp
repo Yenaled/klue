@@ -56,7 +56,7 @@ int64_t ProcessReads(MasterProcessor& MP, const  ProgramOptions& opt) {
   MP.numcontigs = numreads;
   
   if (MP.verbose) {
-    std::cerr << "* processing the sequences ..."; std::cerr.flush();
+    std::cerr << "* processing the sequences ...\n"; std::cerr.flush();
   }
   MP.processReads();
   numreads = MP.numreads;
@@ -281,10 +281,10 @@ void ReadProcessor::processBuffer() {
     }
     i += incf;
     numreads++;
-    if (((numreads > 0 && numreads % 1000000 == 0) || (numchars > 0 && numchars % 1000000000 == 0)) && mp.verbose) {
+    if (((numreads > 0 && numreads % 1000000 == 0) || (numchars > 0 && numchars % 100000000 == 0)) && mp.verbose) {
       numreads = 0; // reset counter
       numchars = 0; // reset counter
-      std::cerr << '\r' << (mp.numreads/1000000) << "M reads, " << (mp.numchars/1000000000) << "B bases processed";
+      std::cerr << '\r' << (mp.numreads/1000000) << "M reads, " << (mp.numchars/100000000) << "00M bases processed";
       std::cerr << "                          ";
       std::cerr.flush();
     }
