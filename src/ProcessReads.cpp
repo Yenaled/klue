@@ -106,9 +106,8 @@ void MasterProcessor::processReads() {
   
   // start worker threads
   
-  std::vector<std::thread> workers;
-  
   for (int j = 0; j < nfiles; j++) {
+    std::vector<std::thread> workers;
     std::vector<std::string> _files;
     if (verbose) {
       std::cerr << "* Processing file #" << j << ": " << opt.transfasta[j] << std::endl;
