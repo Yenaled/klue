@@ -128,6 +128,7 @@ void MasterProcessor::processReads() {
         (*info_ptr).curr_color = false; // Reset it to false (accounts for the fact that the same sequence might be found multiple times in corpus)
       }
     }
+    info_vec.clear(); // Clear it
   }
 }
 
