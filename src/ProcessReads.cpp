@@ -136,6 +136,7 @@ void MasterProcessor::processReads() {
 
 void MasterProcessor::update(int n, 
                              size_t b,
+                             std::vector<ContigInfo*>& _info_vec,
                              std::vector<std::pair<const char*, int>>& seqs,
                              std::vector<std::pair<const char*, int>>& names,
                              std::vector<std::pair<const char*, int>>& quals,
@@ -150,6 +151,10 @@ void MasterProcessor::update(int n,
 
   numreads += n;
   numchars += b;
+
+  info_vec.insert(info_vec.end(), _info_vec.begin(), _info_vec.end());
+  _info_vec.clear();
+  
   //curr_readbatch_id++;
   lock.unlock(); // releases the lock
   //cv.notify_all(); // Alert all other threads to check their readbatch_id's!
@@ -252,7 +257,7 @@ void ReadProcessor::operator()() {
 
     // update the results, MP acquires the lock
     int nfiles = SR->nfiles;
-    mp.update(seqs.size() / nfiles, numchars_, seqs, names, quals, flags, readbatch_id);
+    mp.update(seqs.size() / nfiles, numchars_, info_vec, seqs, names, quals, flags, readbatch_id);
     clear();
   }
 }
@@ -276,7 +281,7 @@ void ReadProcessor::processBuffer() {
       numchars_ += l[j];
       // DEBUG:
       //std::cout << std::to_string(i) << ": " << std::string(s[j], l[j]) << std::endl;
-      mp.ac.searchInCorpus(s[j], l[j], mp.info_vec);
+      mp.ac.searchInCorpus(s[j], l[j], info_vec);
     }
     i += incf;
     numreads++;

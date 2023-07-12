@@ -127,6 +127,7 @@ public:
   void processContigs();
   void update(int n,
               size_t numchars,
+              std::vector<ContigInfo*>& _info_vec,
               std::vector<std::pair<const char*, int>>& seqs,
               std::vector<std::pair<const char*, int>>& names,
               std::vector<std::pair<const char*, int>>& quals,
@@ -150,6 +151,7 @@ public:
   std::vector<std::pair<const char*, int>> names;
   std::vector<std::pair<const char*, int>> quals;
   std::vector<uint32_t> flags;
+  std::vector<ContigInfo*> info_vec;
   
   bool full;
   bool comments;

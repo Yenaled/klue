@@ -22,7 +22,6 @@
   // // // Contig of GGGGATATATATATATATATATATCCCC = how unique? 
 
 void AhoCorasick::processWord(const char* corpus, size_t len, const Kmer& km, int position, std::vector<ContigInfo*>& info_vec) {
-  // TODO: info_vec not thread safe!!!
   auto it = infomap.find(km.rep());
   if (it == infomap.end()) return; // Nothing more to do
   // TODO: forward working, reverse not working
