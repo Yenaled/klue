@@ -56,7 +56,7 @@ int64_t ProcessReads(MasterProcessor& MP, const  ProgramOptions& opt) {
   MP.numcontigs = numreads;
   
   if (MP.verbose) {
-    std::cerr << "* processing the sequences ...\n"; std::cerr.flush();
+    std::cerr << "* processing the sequences ..."; std::cerr.flush();
   }
   MP.processReads();
   numreads = MP.numreads;
@@ -110,6 +110,7 @@ void MasterProcessor::processReads() {
     std::vector<std::thread> workers;
     std::vector<std::string> _files;
     if (verbose) {
+      std::cerr << std::endl;
       std::cerr << "* Processing file #" << j << ": " << opt.transfasta[j] << std::endl;
     }
     _files.push_back(opt.transfasta[j]);
@@ -289,7 +290,7 @@ void ReadProcessor::processBuffer() {
       numreads = 0; // reset counter
       numchars = 0; // reset counter
       std::cerr << '\r' << (mp.numreads/1000000) << "M reads, " << (mp.numchars/100000000) << "00M bases processed";
-      std::cerr << "                          ";
+      std::cerr << "                             ";
       std::cerr.flush();
     }
   }
