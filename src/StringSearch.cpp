@@ -3,6 +3,7 @@
 #include <stdexcept>
 
   // TODO: check threading error for contig processing
+  // TODO: Have kure distinguish generate a t2g file via a -g option
   // TODO: reduce children to A,T,C,G (4 TrieNode* pointers)
   // TODO: see if we can eliminate std::vector<std::string> matchedWords
   // TODO: see if we can store DNA as 2-bits
