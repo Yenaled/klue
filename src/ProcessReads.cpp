@@ -144,15 +144,15 @@ void MasterProcessor::update(int n,
   // acquire the writer lock
   std::unique_lock<std::mutex> lock(this->writer_lock);
 
-  while (readbatch_id != curr_readbatch_id) {
-    cv.wait(lock, [this, readbatch_id]{ return readbatch_id == curr_readbatch_id; });
-  }
+  //while (readbatch_id != curr_readbatch_id) {
+    //cv.wait(lock, [this, readbatch_id]{ return readbatch_id == curr_readbatch_id; });
+  //}
 
   numreads += n;
   numchars += b;
-  curr_readbatch_id++;
+  //curr_readbatch_id++;
   lock.unlock(); // releases the lock
-  cv.notify_all(); // Alert all other threads to check their readbatch_id's!
+  //cv.notify_all(); // Alert all other threads to check their readbatch_id's!
 }
 
 void MasterProcessor::writeContigs(FILE* out, int min_colors_found) {
@@ -249,7 +249,7 @@ void ReadProcessor::operator()() {
     } else {
       processBufferContigs();
     }
-    
+
     // update the results, MP acquires the lock
     int nfiles = SR->nfiles;
     mp.update(seqs.size() / nfiles, numchars_, seqs, names, quals, flags, readbatch_id); // TODO: Can't update until the end
