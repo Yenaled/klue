@@ -62,7 +62,7 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
   int pipe_flag = 0;
   int distinguish_all_flag = 0;
   int distinguish_all_but_one_flag = 0;
-  const char *opt_string = "o:k:m:t:r:M:p";
+  const char *opt_string = "o:k:m:t:r:M:g:p";
   static struct option long_options[] = {
     // long args
     {"verbose", no_argument, &verbose_flag, 1},
@@ -74,6 +74,7 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
     {"kmer-size", required_argument, 0, 'k'},
     {"kmer-multiplicity", required_argument, 0, 'M'},
     {"min-size", required_argument, 0, 'm'},
+    {"map-file", required_argument, 0, 'g'},
     {"threads", required_argument, 0, 't'},
     {"range", required_argument, 0, 'r'},
     {0,0,0,0}
@@ -100,6 +101,10 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
     }
     case 'k': {
       stringstream(optarg) >> opt.k;
+      break;
+    }
+    case 'g': {
+      opt.map_file = optarg;
       break;
     }
     case 'm': {
@@ -469,6 +474,7 @@ void usageDistinguish() {
        << "                            Can specify multiple numbers (one for each input file)" << endl
        << "    --all                   Set the mode to be extracting sequences found in any input" << endl
        << "    --all-but-one           Set the mode to be extracting all sequences except those found across all inputs" << endl
+       << "-g, --map-file=STRING       Filename for mapping output FASTA headers to file names" << endl
        << "-t, --threads=INT           Number of threads to use (default: 1)" << endl
        << "-m, --min-size=INT          Length of minimizers (default: automatically chosen)" << endl
        << endl;
@@ -547,6 +553,14 @@ int main(int argc, char *argv[]) {
         std::ofstream out;
         out.open(opt.distinguish_output_fasta, std::ios::out | std::ios::binary);
         index.BuildDistinguishingGraph(opt, out);
+        if (!opt.map_file.empty()) { // Write out mapping file (a type of t2g file)
+          std::ofstream out_map_f;
+          out_map_f.open(opt.map_file);
+          for (int i = 0; i < opt.transfasta.size(); i++) {
+            out_map_f << std::to_string(i) << "\t" << opt.transfasta[i] << "\n";
+          }
+          out_map_f.close();
+        }
       }
     } else if (cmd == "refine") {
       if (argc==2) {

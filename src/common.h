@@ -38,6 +38,7 @@ struct ProgramOptions {
   int threads;
   std::string distinguish_output_fasta;
   std::string input_fasta_contig;
+  std::string map_file;
   int k;
   int g;
   int min_found_colors;
