@@ -259,21 +259,32 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   auto color_names = ccdbg.getColorNames();
   std::vector<int> color_map;
   color_map.resize(tmp_files.size());
-  // TODO: Reconstruct below
-  for (int i = 0; i < color_names.size(); i++) {
-    auto color_name = color_names[i];
-    for (int j = 0; j < tmp_files.size(); j++) {
-      std::string fname = tmp_files[j];
-      std::string real_fname = transfasta[j];
-      if (opt.kmer_multiplicity[j] != 1) {
-        fname = real_fname;
+  if (!reconstruct) {
+    for (int i = 0; i < color_names.size(); i++) {
+      auto color_name = color_names[i];
+      for (int j = 0; j < tmp_files.size(); j++) {
+        std::string fname = tmp_files[j];
+        std::string real_fname = transfasta[j];
+        if (opt.kmer_multiplicity[j] != 1) {
+          fname = real_fname;
+        }
+        if (color_name == fname) {
+          std::cerr << "        " << real_fname << ": " << j << " (multiplicity: " << opt.kmer_multiplicity[j] << ")" << std::endl;
+          color_map[i] = j;
+        }
       }
-      if (color_name == fname) {
-        std::cerr << "        " << real_fname << ": " << j << " (multiplicity: " << opt.kmer_multiplicity[j] << ")" << std::endl;
-        color_map[i] = j;
+    }
+  } else {
+    for (int i = 0; i < color_names.size(); i++) {
+      auto color_name = color_names[i];
+      for (int j = 0; j < tmp_files.size(); j++) {
+        if (color_name == tmp_files[j]) {
+          color_map[i] = j;
+        }
       }
     }
   }
+
   std::cerr << "[build] Extracting k-mers from graph" << std::endl;
   std::streambuf* buf = nullptr;
   std::ofstream of;
@@ -293,6 +304,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   uint32_t rb = std::max(opt.distinguish_range_begin,0); // range begin filter
   uint32_t re = opt.distinguish_range_end == 0 ? rb : std::max(opt.distinguish_range_end,0); // range end filter
   if (rb == 0 && re == 0) re = std::numeric_limits<uint32_t>::max();
+  // TODO: Reconstruct below
   for (const auto& unitig : ccdbg) {
     const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
     const UnitigMap<DataAccessor<void>, DataStorage<void>, false> unitig_ = unitig;
