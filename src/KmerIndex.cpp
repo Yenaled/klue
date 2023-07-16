@@ -69,12 +69,12 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
   std::vector<std::string> transfasta = opt.transfasta;
   std::vector<std::string> tmp_files;
   std::vector<std::ofstream*> ofs; // Store pointers to circumvent certain compiler bugs where ofstream is non-movable
-  //for (auto tmp_file : tmp_files) ofs.push_back(new std::ofstream(tmp_file));
   gzFile fp = 0;
   kseq_t *seq;
   int l = 0;
   num_trans = 0;
   for (auto& fasta : transfasta) {
+    std::cerr << "[build] Preparing FASTA file: " << fasta << std::endl;
     fp = transfasta.size() == 1 && transfasta[0] == "-" ? gzdopen(fileno(stdin), "r") : gzopen(fasta.c_str(), "r");
     seq = kseq_init(fp);
     while (true) {
@@ -84,13 +84,38 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
       }
       std::string name = seq->name.s;
       std::string str = seq->seq.s;
+      int color;
+      try {
+        color = std::stoi(name);
+      } catch (std::exception const & e) {
+        std::cerr << "Error: Non-numerical name found in " << fasta << std::endl;
+        exit(1);
+      }
+      if (color < 0 || color > 4096) {
+        std::cerr << "Error: Invalid number name, " << std::to_string(color) << ", found in " << fasta << std::endl;
+        exit(1);
+      }
+      if (color >= tmp_files.size()) {
+        tmp_files.resize(color+1);
+        ofs.resize(color+1);
+        for (int i = 0; i < tmp_files.size(); i++) {
+          if (tmp_files[i].empty()) {
+            tmp_files[i] = generate_tmp_file(opt.distinguish_output_fasta + fasta + std::to_string(i));
+            ofs[i] = new std::ofstream(tmp_files[i]); // Store pointers to circumvent certain compiler bugs where ofstream is non-movable
+          }
+        }
+      }
       if (str.length() < k) {
         continue;
       }
+      *(ofs[color]) << ">" << std::to_string(color) << "\n" << str << "\n";
       num_trans++;
-      // TODO: temporary files
     }
+    gzclose(fp);
+    fp=0;
   }
+  for (auto& of : ofs) (*of).close(); // Close files now that we've outputted everything
+  for (auto& of : ofs) delete of; // Free pointer memory
   BuildDistinguishingGraph(opt, tmp_files, true); // TODO: modify to handle temporary files
 }
 
@@ -100,98 +125,102 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   size_t ncolors = 0;
   std::string out_file = opt.distinguish_output_fasta;
   std::vector<std::string> tmp_files;
-  for (auto& fasta : transfasta) {
-    std::cerr << "[build] loading fasta file " << fasta
-              << std::endl;
-    tmp_files.push_back(generate_tmp_file(opt.distinguish_output_fasta + fasta));
-  }
-  
-  std::vector<std::ofstream*> ofs; // Store pointers to circumvent certain compiler bugs where ofstream is non-movable
-  for (auto tmp_file : tmp_files) ofs.push_back(new std::ofstream(tmp_file));
-  num_trans = 0;
-  
-  // read fasta file using kseq
-  gzFile fp = 0;
-  kseq_t *seq;
-  int l = 0;
-  std::mt19937 gen(42);
-  int countNonNucl = 0;
-  int countTrim = 0;
-  int countUNuc = 0;
-  
-  int i = 0;
-  for (auto& fasta : transfasta) {
-    if (opt.kmer_multiplicity[i] != 1) {
-      i++;
-      continue; // Don't do any processing or anything, use input file as-is
+  if (reconstruct) {
+    tmp_files = transfasta;
+  } else {
+    for (auto& fasta : transfasta) {
+      std::cerr << "[build] loading fasta file " << fasta
+                << std::endl;
+      tmp_files.push_back(generate_tmp_file(opt.distinguish_output_fasta + fasta));
     }
-    fp = transfasta.size() == 1 && transfasta[0] == "-" ? gzdopen(fileno(stdin), "r") : gzopen(fasta.c_str(), "r");
-    seq = kseq_init(fp);
-    while (true) {
-      l = kseq_read(seq);
-      if (l <= 0) {
-        break;
+    std::vector<std::ofstream*> ofs; // Store pointers to circumvent certain compiler bugs where ofstream is non-movable
+    for (auto tmp_file : tmp_files) ofs.push_back(new std::ofstream(tmp_file));
+    num_trans = 0;
+    
+    // read fasta file using kseq
+    gzFile fp = 0;
+    kseq_t *seq;
+    int l = 0;
+    std::mt19937 gen(42);
+    int countNonNucl = 0;
+    int countTrim = 0;
+    int countUNuc = 0;
+    
+    int i = 0;
+    for (auto& fasta : transfasta) {
+      if (opt.kmer_multiplicity[i] != 1) {
+        i++;
+        continue; // Don't do any processing or anything, use input file as-is
       }
-      int trimNonNuclStart = 0;
-      int trimNonNuclEnd = 0;
-      int runningValidNuclLength = 0;
-      bool finishTrimStart = false;
-      std::string str = seq->seq.s;
-      auto n = str.size();
-      for (auto i = 0; i < n; i++) {
-        char c = str[i];
-        c = ::toupper(c);
-        if (c=='U') {
-          str[i] = 'T';
-          countUNuc++;
+      fp = transfasta.size() == 1 && transfasta[0] == "-" ? gzdopen(fileno(stdin), "r") : gzopen(fasta.c_str(), "r");
+      seq = kseq_init(fp);
+      while (true) {
+        l = kseq_read(seq);
+        if (l <= 0) {
+          break;
         }
-        if (c !='A' && c != 'C' && c != 'G' && c != 'T' && c != 'U') {
-          countNonNucl++;
-          if (runningValidNuclLength >= k && finishTrimStart) trimNonNuclEnd = i-1; // We trim the sequence end from the last valid k-mer onward
-          runningValidNuclLength = 0;
-        } else { // Valid nucleotide
-          runningValidNuclLength++;
-          if (!finishTrimStart) {
-            if (runningValidNuclLength >= k) {
-              finishTrimStart = true;
-              trimNonNuclStart = i+1-k; // We trim the sequence beginning until we encounter k valid nucleotides (first valid k-mer)
-            }
+        int trimNonNuclStart = 0;
+        int trimNonNuclEnd = 0;
+        int runningValidNuclLength = 0;
+        bool finishTrimStart = false;
+        std::string str = seq->seq.s;
+        auto n = str.size();
+        for (auto i = 0; i < n; i++) {
+          char c = str[i];
+          c = ::toupper(c);
+          if (c=='U') {
+            str[i] = 'T';
+            countUNuc++;
           }
-          if (runningValidNuclLength >= k && finishTrimStart) trimNonNuclEnd = i; // We trim the sequence end from the last valid k-mer onward
+          if (c !='A' && c != 'C' && c != 'G' && c != 'T' && c != 'U') {
+            countNonNucl++;
+            if (runningValidNuclLength >= k && finishTrimStart) trimNonNuclEnd = i-1; // We trim the sequence end from the last valid k-mer onward
+            runningValidNuclLength = 0;
+          } else { // Valid nucleotide
+            runningValidNuclLength++;
+            if (!finishTrimStart) {
+              if (runningValidNuclLength >= k) {
+                finishTrimStart = true;
+                trimNonNuclStart = i+1-k; // We trim the sequence beginning until we encounter k valid nucleotides (first valid k-mer)
+              }
+            }
+            if (runningValidNuclLength >= k && finishTrimStart) trimNonNuclEnd = i; // We trim the sequence end from the last valid k-mer onward
+          }
         }
+        std::transform(str.begin(), str.end(),str.begin(), ::toupper);
+        str = (trimNonNuclEnd == 0 ? str.substr(trimNonNuclStart) : str.substr(trimNonNuclStart,trimNonNuclEnd+1-trimNonNuclStart));
+        countTrim += n - str.length();
+        if (str.length() >= k) {
+          *(ofs[i]) << ">" << num_trans++ << "\n" << str << "\n";
+        }
+        //target_lens_.push_back(seq->seq.l);
+        //std::string name(seq->name.s);
+        //size_t p = name.find(' ');
+        //if (p != std::string::npos) {
+        //  name = name.substr(0,p);
+        //}
       }
-      std::transform(str.begin(), str.end(),str.begin(), ::toupper);
-      str = (trimNonNuclEnd == 0 ? str.substr(trimNonNuclStart) : str.substr(trimNonNuclStart,trimNonNuclEnd+1-trimNonNuclStart));
-      countTrim += n - str.length();
-      if (str.length() >= k) {
-        *(ofs[i]) << ">" << num_trans++ << "\n" << str << "\n";
-      }
-      //target_lens_.push_back(seq->seq.l);
-      //std::string name(seq->name.s);
-      //size_t p = name.find(' ');
-      //if (p != std::string::npos) {
-      //  name = name.substr(0,p);
-      //}
+      
+      gzclose(fp);
+      fp=0;
+      i++;
     }
     
-    gzclose(fp);
-    fp=0;
-    i++;
-  }
-  
-  for (auto& of : ofs) (*of).close(); // Close files now that we've outputted everything
-  for (auto& of : ofs) delete of; // Free pointer memory
-  
-  if (countNonNucl > 0) {
-    std::cerr << "[build] warning: counted " << countNonNucl << " non-ACGUT characters in the input sequence" << std::endl;
-  }
-  
-  if (countTrim > 0) {
-    std::cerr << "[build] warning: trimmed " << countTrim << " characters from ends of input sequences" << std::endl;
-  }
-  
-  if (countUNuc > 0) {
-    std::cerr << "[build] warning: replaced " << countUNuc << " U characters with Ts" << std::endl;
+    for (auto& of : ofs) (*of).close(); // Close files now that we've outputted everything
+    for (auto& of : ofs) delete of; // Free pointer memory
+    ofs.clear();
+    
+    if (countNonNucl > 0) {
+      std::cerr << "[build] warning: counted " << countNonNucl << " non-ACGUT characters in the input sequence" << std::endl;
+    }
+    
+    if (countTrim > 0) {
+      std::cerr << "[build] warning: trimmed " << countTrim << " characters from ends of input sequences" << std::endl;
+    }
+    
+    if (countUNuc > 0) {
+      std::cerr << "[build] warning: replaced " << countUNuc << " U characters with Ts" << std::endl;
+    }
   }
   
   CCDBG_Build_opt c_opt;
@@ -202,7 +231,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   c_opt.deleteIsolated = false;
   c_opt.verbose = opt.verbose;
   for (int i = 0; i < tmp_files.size(); i++) {
-    if (opt.kmer_multiplicity[i] == 1) {
+    if (opt.kmer_multiplicity[i] == 1 || reconstruct) {
       c_opt.filename_ref_in.push_back(tmp_files[i]);
     } else {
       c_opt.filename_seq_in.push_back(transfasta[i]);
@@ -230,6 +259,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   auto color_names = ccdbg.getColorNames();
   std::vector<int> color_map;
   color_map.resize(tmp_files.size());
+  // TODO: Reconstruct below
   for (int i = 0; i < color_names.size(); i++) {
     auto color_name = color_names[i];
     for (int j = 0; j < tmp_files.size(); j++) {
@@ -360,6 +390,5 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
     of.close();
   }
   tmp_files.clear();
-  ofs.clear();
 }
 
