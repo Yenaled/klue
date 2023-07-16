@@ -73,6 +73,10 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
   kseq_t *seq;
   int l = 0;
   num_trans = 0;
+  size_t range_discard = 0;
+  uint32_t rb = std::max(opt.distinguish_range_begin,0); // range begin filter
+  uint32_t re = opt.distinguish_range_end == 0 ? rb : std::max(opt.distinguish_range_end,0); // range end filter
+  if (rb == 0 && re == 0) re = std::numeric_limits<uint32_t>::max();
   for (auto& fasta : transfasta) {
     std::cerr << "[build] Preparing FASTA file: " << fasta << std::endl;
     fp = transfasta.size() == 1 && transfasta[0] == "-" ? gzdopen(fileno(stdin), "r") : gzopen(fasta.c_str(), "r");
@@ -108,14 +112,21 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
       if (str.length() < k) {
         continue;
       }
-      *(ofs[color]) << ">" << std::to_string(color) << "\n" << str << "\n";
-      num_trans++;
+      if (str.length() >= rb && str.length() <= re) {
+        *(ofs[color]) << ">" << std::to_string(color) << "\n" << str << "\n";
+        num_trans++;
+      } else {
+        range_discard++;
+      }
     }
     gzclose(fp);
     fp=0;
   }
   for (auto& of : ofs) (*of).close(); // Close files now that we've outputted everything
   for (auto& of : ofs) delete of; // Free pointer memory
+  if (range_discard > 0) {
+    std::cerr << "[build] Number of input sequences filtered out due to length : " << range_discard << std::endl;
+  }
   BuildDistinguishingGraph(opt, tmp_files, true); // TODO: modify to handle temporary files
 }
 
@@ -304,6 +315,8 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   uint32_t rb = std::max(opt.distinguish_range_begin,0); // range begin filter
   uint32_t re = opt.distinguish_range_end == 0 ? rb : std::max(opt.distinguish_range_end,0); // range end filter
   if (rb == 0 && re == 0) re = std::numeric_limits<uint32_t>::max();
+  std::atomic<int> range_discard = 0;
+  std::atomic<int> num_written = 0;
   // TODO: Reconstruct below
   for (const auto& unitig : ccdbg) {
     const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
@@ -372,14 +385,16 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                     } else if (pos == curr_pos+1) {
                       colored_contig += km[km.length()-1];
                     } else {
-                      if (colored_contig.length() >= rb && colored_contig.length() <= re) oss << ">" << std::to_string(color) << "\n" << colored_contig << "\n";
+                      if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << std::to_string(color) << "\n" << colored_contig << "\n"; num_written++; }
+                      else range_discard++;
                       colored_contig = km;
                     }
                     curr_pos = pos;
                   }
                 }
                 if (colored_contig != "") {
-                  if (colored_contig.length() >= rb && colored_contig.length() <= re) oss << ">" << std::to_string(color) << "\n" << colored_contig << "\n";
+                  if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << std::to_string(color) << "\n" << colored_contig << "\n"; num_written++; }
+                  else range_discard++;
                 }
               }
             }
@@ -402,5 +417,9 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
     of.close();
   }
   tmp_files.clear();
+  if (opt.verbose) {
+    if (range_discard > 0) std::cerr << "[build] Number of output sequences filtered out due to length: " << range_discard << std::endl;
+    std::cerr << "[build] Number of output sequences written: " << range_discard << std::endl;
+  }
 }
 
