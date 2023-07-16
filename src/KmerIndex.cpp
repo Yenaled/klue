@@ -64,13 +64,43 @@ std::string generate_tmp_file(std::string seed) {
   return tmp_file;
 }
 
-void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, std::ofstream& out) {
+void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
+  // Read in FASTAs and output each color into a new separate temp file
+  std::vector<std::string> transfasta = opt.transfasta;
+  std::vector<std::string> tmp_files;
+  std::vector<std::ofstream*> ofs; // Store pointers to circumvent certain compiler bugs where ofstream is non-movable
+  //for (auto tmp_file : tmp_files) ofs.push_back(new std::ofstream(tmp_file));
+  gzFile fp = 0;
+  kseq_t *seq;
+  int l = 0;
+  num_trans = 0;
+  for (auto& fasta : transfasta) {
+    fp = transfasta.size() == 1 && transfasta[0] == "-" ? gzdopen(fileno(stdin), "r") : gzopen(fasta.c_str(), "r");
+    seq = kseq_init(fp);
+    while (true) {
+      l = kseq_read(seq);
+      if (l <= 0) {
+        break;
+      }
+      std::string name = seq->name.s;
+      std::string str = seq->seq.s;
+      if (str.length() < k) {
+        continue;
+      }
+      num_trans++;
+      // TODO: temporary files
+    }
+  }
+  BuildDistinguishingGraph(opt, tmp_files, true); // TODO: modify to handle temporary files
+}
+
+void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::vector<std::string>& transfasta, bool reconstruct) {
   k = opt.k;
   std::cerr << "[build] k-mer length: " << k << std::endl;
   size_t ncolors = 0;
   std::string out_file = opt.distinguish_output_fasta;
   std::vector<std::string> tmp_files;
-  for (auto& fasta : opt.transfasta) {
+  for (auto& fasta : transfasta) {
     std::cerr << "[build] loading fasta file " << fasta
               << std::endl;
     tmp_files.push_back(generate_tmp_file(opt.distinguish_output_fasta + fasta));
@@ -90,12 +120,12 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, std::ofstrea
   int countUNuc = 0;
   
   int i = 0;
-  for (auto& fasta : opt.transfasta) {
+  for (auto& fasta : transfasta) {
     if (opt.kmer_multiplicity[i] != 1) {
       i++;
       continue; // Don't do any processing or anything, use input file as-is
     }
-    fp = opt.transfasta.size() == 1 && opt.transfasta[0] == "-" ? gzdopen(fileno(stdin), "r") : gzopen(fasta.c_str(), "r");
+    fp = transfasta.size() == 1 && transfasta[0] == "-" ? gzdopen(fileno(stdin), "r") : gzopen(fasta.c_str(), "r");
     seq = kseq_init(fp);
     while (true) {
       l = kseq_read(seq);
@@ -134,7 +164,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, std::ofstrea
       str = (trimNonNuclEnd == 0 ? str.substr(trimNonNuclStart) : str.substr(trimNonNuclStart,trimNonNuclEnd+1-trimNonNuclStart));
       countTrim += n - str.length();
       if (str.length() >= k) {
-        *(ofs[i]) << ">" << num_trans++ << "\n" << str << std::endl;
+        *(ofs[i]) << ">" << num_trans++ << "\n" << str << "\n";
       }
       //target_lens_.push_back(seq->seq.l);
       //std::string name(seq->name.s);
@@ -175,7 +205,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, std::ofstrea
     if (opt.kmer_multiplicity[i] == 1) {
       c_opt.filename_ref_in.push_back(tmp_files[i]);
     } else {
-      c_opt.filename_seq_in.push_back(opt.transfasta[i]);
+      c_opt.filename_seq_in.push_back(transfasta[i]);
     }
   }
   
@@ -204,7 +234,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, std::ofstrea
     auto color_name = color_names[i];
     for (int j = 0; j < tmp_files.size(); j++) {
       std::string fname = tmp_files[j];
-      std::string real_fname = opt.transfasta[j];
+      std::string real_fname = transfasta[j];
       if (opt.kmer_multiplicity[j] != 1) {
         fname = real_fname;
       }

@@ -16,12 +16,13 @@
 
 
 struct KmerIndex {
-  KmerIndex(const ProgramOptions& opt) : k(opt.k) {
+  KmerIndex(const ProgramOptions& opt) : k(opt.k), num_trans(0) {
   }
 
   ~KmerIndex() {}
 
-  void BuildDistinguishingGraph(const ProgramOptions& opt, std::ofstream& out);
+  void BuildDistinguishingGraph(const ProgramOptions& opt, const std::vector<std::string>& transfasta, bool reconstruct=false);
+  void BuildReconstructionGraph(const ProgramOptions& opt);
   int k; // k-mer size used
   int num_trans; // number of targets
 };

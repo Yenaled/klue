@@ -738,9 +738,7 @@ int main(int argc, char *argv[]) {
       } else {
         Kmer::set_k(opt.k);
         KmerIndex index(opt);
-        std::ofstream out;
-        out.open(opt.distinguish_output_fasta, std::ios::out | std::ios::binary);
-        index.BuildDistinguishingGraph(opt, out);
+        index.BuildDistinguishingGraph(opt, opt.transfasta);
         if (!opt.map_file.empty()) { // Write out mapping file (a type of t2g file)
           std::ofstream out_map_f;
           out_map_f.open(opt.map_file);
@@ -761,10 +759,8 @@ int main(int argc, char *argv[]) {
         exit(1);
       } else {
         Kmer::set_k(opt.k);
-        //KmerIndex index(opt);
-        std::ofstream out;
-        //out.open(opt.distinguish_output_fasta, std::ios::out | std::ios::binary);
-        //index.BuildDistinguishingGraph(opt, out);
+        KmerIndex index(opt);
+        index.BuildReconstructionGraph(opt);
       }
     } else if (cmd == "refine") {
       if (argc==2) {
