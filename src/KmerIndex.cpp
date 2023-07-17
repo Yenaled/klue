@@ -242,7 +242,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   c_opt.deleteIsolated = false;
   c_opt.verbose = opt.verbose;
   for (int i = 0; i < tmp_files.size(); i++) {
-    if (opt.kmer_multiplicity[i] == 1 || reconstruct) {
+    if (reconstruct || opt.kmer_multiplicity[i] == 1) {
       c_opt.filename_ref_in.push_back(tmp_files[i]);
     } else {
       c_opt.filename_seq_in.push_back(transfasta[i]);
