@@ -419,7 +419,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   tmp_files.clear();
   if (opt.verbose) {
     if (range_discard > 0) std::cerr << "[build] Number of output sequences filtered out due to length: " << range_discard << std::endl;
-    std::cerr << "[build] Number of output sequences written: " << range_discard << std::endl;
+    std::cerr << "[build] Number of output sequences written: " << num_written << std::endl;
   }
 }
 
