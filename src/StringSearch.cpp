@@ -14,6 +14,8 @@
   // TODO: Check contig lengths (allow longer contigs and shorter contigs, and output them, but just return false from the add() function to notify)
   // TODO: Deal with color_found logic
   // TODO: Deal with corpus to handle N's that are stored in the Kmer
+  // TODO: strandedness
+  // TODO: bubble
   // Alternative: Build a colored de bruijn graph of 29-mers over contigs (w/ the next 29-mer stored in node and 3-inbetween chars) and ensure the sliding window works [and remove N's]
   // Microsatellites: k-mer must cross [f][r][r][f] entirely to be unique, put [r][r] in dictionary, and look up and extend to find [f].
   // // GATATATATATATATATATATATATATATC; others can be shorter (e.g. GATATATC) but others can't be longer (violates uniqueness rule)
