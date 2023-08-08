@@ -1,5 +1,5 @@
-#ifndef KURE_STRINGSEARCH_H
-#define KURE_STRINGSEARCH_H
+#ifndef KLUE_STRINGSEARCH_H
+#define KLUE_STRINGSEARCH_H
 
 #include "common.h"
 #include "Kmer.hpp"
@@ -37,5 +37,5 @@ public:
   u_map_<Kmer, ContigInfo, KmerHash> infomap;
 };
 
-#endif // KURE_STRINGSEARCH_H
+#endif // KLUE_STRINGSEARCH_H
 

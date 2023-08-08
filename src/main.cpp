@@ -614,24 +614,24 @@ void PrintCite() {
 }
 
 void PrintVersion() {
-  cout << "kure, version " << KURE_VERSION << endl;
+  cout << "klue, version " << KLUE_VERSION << endl;
 }
 
 void usage() {
-  cout << "kure " << KURE_VERSION << endl << endl
-       << "Usage: kure <CMD> [arguments] .." << endl << endl
+  cout << "klue " << KLUE_VERSION << endl << endl
+       << "Usage: klue <CMD> [arguments] .." << endl << endl
        << "Where <CMD> can be one of:" << endl << endl
        << "    distinguish   Extracts distinguishing contigs from FASTA/FASTQ files "<< endl
        << "    refine        Refine contigs based on certain criteria"<< endl
        << "    version       Prints version information" << endl
        << "    cite          Prints citation information" << endl << endl
-       << "Running kure <CMD> without arguments prints usage information for <CMD>"<< endl << endl;
+       << "Running klue <CMD> without arguments prints usage information for <CMD>"<< endl << endl;
 }
 
 void usageDistinguish() {
-  cout << "kure " << KURE_VERSION << endl
+  cout << "klue " << KLUE_VERSION << endl
        << "Extracts distinguishing contigs from FASTA/FASTQ files" << endl << endl
-       << "Usage: kure distinguish [arguments] FASTA-files" << endl << endl
+       << "Usage: klue distinguish [arguments] FASTA-files" << endl << endl
        << "Required argument (choose one of the following):" << endl
        << "-p, --pipe                 Direct output to standard output" << endl
        << "-o, --output=STRING        Filename for the output FASTA" << endl << endl
@@ -651,9 +651,9 @@ void usageDistinguish() {
 }
 
 void usageRefineUnitigs() {
-  cout << "kure " << KURE_VERSION << endl
+  cout << "klue " << KLUE_VERSION << endl
        << "Reconstruct contigs in FASTA file, outputting extended contig sequences" << endl << endl
-       << "Usage: kure reconstruct [arguments] FASTA-files" << endl << endl
+       << "Usage: klue reconstruct [arguments] FASTA-files" << endl << endl
        << "Required argument (choose one of the following):" << endl
        << "-p, --pipe                 Direct output to standard output" << endl
        << "-o, --output=STRING        Filename for the output FASTA" << endl << endl
@@ -670,9 +670,9 @@ void usageRefineUnitigs() {
 }
 
 void usageRefine() {
-  cout << "kure " << KURE_VERSION << endl
+  cout << "klue " << KLUE_VERSION << endl
        << "Refines contigs in FASTA file, outputting the ones that meet certain criteria" << endl << endl
-       << "Usage: kure refine [arguments] FASTA-files" << endl << endl
+       << "Usage: klue refine [arguments] FASTA-files" << endl << endl
        << "Required argument (choose one of the following):" << endl
        << "-p, --pipe                 Direct output to standard output" << endl
        << "-i, --input=STRING         Filename for the input contig FASTA" << endl

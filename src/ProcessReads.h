@@ -1,5 +1,5 @@
-#ifndef KURE_PROCESSREADS_H
-#define KURE_PROCESSREADS_H
+#ifndef KLUE_PROCESSREADS_H
+#define KLUE_PROCESSREADS_H
 
 #include "common.h"
 
@@ -169,4 +169,4 @@ public:
 
 std::string pretty_num(size_t num);
 
-#endif // KURE_PROCESSREADS_H
+#endif // KLUE_PROCESSREADS_H

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0.0)
 
-project(kure)
+project(klue)
 
 include(GNUInstallDirs)
 
@@ -98,7 +98,7 @@ if (BUILD_FUNCTESTING)
     message("Functional testing enabled.")
     add_custom_target(test
     COMMAND /bin/bash ./func_tests/runtests.sh
-    DEPENDS ./src/kure
+    DEPENDS ./src/klue
     )
 endif(BUILD_FUNCTESTING)
 

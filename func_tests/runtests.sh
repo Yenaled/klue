@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ### Setup ###
-kure="./src/kure"
+klue="./src/klue"
 test_dir="./func_tests"
 
 cmdexec() {

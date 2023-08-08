@@ -1,5 +1,5 @@
-#ifndef KURE_KMERINDEX_H
-#define KURE_KMERINDEX_H
+#ifndef KLUE_KMERINDEX_H
+#define KLUE_KMERINDEX_H
 
 #include <iostream>
 #include <fstream>
@@ -27,4 +27,4 @@ struct KmerIndex {
   int num_trans; // number of targets
 };
 
-#endif // KURE_KMERINDEX_H
+#endif // KLUE_KMERINDEX_H

@@ -5,15 +5,15 @@ list(REMOVE_ITEM sources main.cpp)
 
 add_compile_options(-Wno-subobject-linkage) # Suppress bifrost warning
 
-add_library(kure_core ${sources} ${headers})
-target_include_directories(kure_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+add_library(klue_core ${sources} ${headers})
+target_include_directories(klue_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_executable(kure main.cpp)
+add_executable(klue main.cpp)
 
 find_package( Threads REQUIRED )
 ExternalProject_Get_Property(bifrost install_dir)
 
-target_link_libraries(kure kure_core pthread ${install_dir}/build/src/libbifrost.a)
+target_link_libraries(klue klue_core pthread ${install_dir}/build/src/libbifrost.a)
 
 if(LINK MATCHES static)
     set(BUILD_SHARED_LIBS OFF)
@@ -26,7 +26,7 @@ if(LINK MATCHES static)
         set(CMAKE_EXE_LINKER_FLAGS  "-static -static-libgcc -static-libstdc++")
     endif(UNIX AND NOT APPLE)
 
-    SET_TARGET_PROPERTIES(kure kure_core PROPERTIES LINK_SEARCH_END_STATIC 1)
+    SET_TARGET_PROPERTIES(klue klue_core PROPERTIES LINK_SEARCH_END_STATIC 1)
 endif(LINK MATCHES static)
 
 
@@ -35,32 +35,32 @@ find_package( ZLIB REQUIRED )
 
 if ( ZLIB_FOUND )
     include_directories( ${ZLIB_INCLUDE_DIRS} )
-    target_link_libraries(kure kure_core ${ZLIB_LIBRARIES})
+    target_link_libraries(klue klue_core ${ZLIB_LIBRARIES})
 else()
     message(FATAL_ERROR "zlib not found. Required for to output files" )
 endif( ZLIB_FOUND )
 endif(NOT ZLIBNG)
 
 if (ZLIBNG)
-    add_definitions(-DKURE_USE_ZLIB_NG)
+    add_definitions(-DKLUE_USE_ZLIB_NG)
     include_directories(../ext/zlib-ng/zlib-ng)
     include_directories(../ext/zlib-ng)
     if(WIN32)
-    target_link_libraries(kure ${CMAKE_CURRENT_SOURCE_DIR}/../ext/zlib-ng/zlib-ng/libz.lib)
+    target_link_libraries(klue ${CMAKE_CURRENT_SOURCE_DIR}/../ext/zlib-ng/zlib-ng/libz.lib)
     else()
-    target_link_libraries(kure ${CMAKE_CURRENT_SOURCE_DIR}/../ext/zlib-ng/zlib-ng/libz.a)
+    target_link_libraries(klue ${CMAKE_CURRENT_SOURCE_DIR}/../ext/zlib-ng/zlib-ng/libz.a)
     endif(WIN32)
 endif(ZLIBNG)
 
 if(LINK MATCHES static)
     if (UNIX AND NOT APPLE)
-        target_link_libraries(kure librt.a)
+        target_link_libraries(klue librt.a)
     endif()
 else()
     if (UNIX AND NOT APPLE)
-        target_link_libraries(kure rt)
+        target_link_libraries(klue rt)
     endif()
 endif(LINK MATCHES static)
 
 
-install(TARGETS kure DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(TARGETS klue DESTINATION "${CMAKE_INSTALL_BINDIR}")

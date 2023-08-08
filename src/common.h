@@ -1,7 +1,7 @@
-#ifndef KURE_COMMON_H
-#define KURE_COMMON_H
+#ifndef KLUE_COMMON_H
+#define KLUE_COMMON_H
 
-#define KURE_VERSION "0.29.0"
+#define KLUE_VERSION "0.29.0"
 
 // NOTE: MAKE SURE THIS FILE GETS INCLUDED FIRST IN ALL OTHER FILES AND BEFORE ANY EXTERNAL LIBRARIES
 
@@ -14,11 +14,11 @@
 #include "kseq.h"
 
 #if defined(_MSVC_LANG)
-#define KURE_CPP_VERSION _MSVC_LANG
+#define KLUE_CPP_VERSION _MSVC_LANG
 #else
-#define KURE_CPP_VERSION __cplusplus
+#define KLUE_CPP_VERSION __cplusplus
 #endif
-#if KURE_CPP_VERSION < 201703L
+#if KLUE_CPP_VERSION < 201703L
 #include "robin_hood.h"
 #define u_map_ robin_hood::unordered_flat_map
 #define u_set_ robin_hood::unordered_set
@@ -70,7 +70,7 @@ std::string pretty_num(int64_t num);
 std::string pretty_num(int num);
 
 
-#ifdef KURE_USE_ZLIB_NG
+#ifdef KLUE_USE_ZLIB_NG
 #include "zlib-ng/zlib.h"
 #else
 #include <zlib.h>
@@ -84,4 +84,4 @@ KSEQ_INIT(gzFile, gzread)
 extern std::string revcomp(const std::string& s);
 
 
-#endif // KURE_COMMON_H
+#endif // KLUE_COMMON_H

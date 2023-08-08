@@ -54,7 +54,7 @@ int hamming(const char *a, const char *b) {
 
 std::string generate_tmp_file(std::string seed) {
   std::string base = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-  std::string tmp_file = ".kure.";
+  std::string tmp_file = ".klue.";
   srand((unsigned int)std::hash<std::string>{}(seed));
   int pos;
   while(tmp_file.length() < 32) {
