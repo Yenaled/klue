@@ -400,9 +400,8 @@ protected:
     int k;           // k-mer length
     int num_trans;   // Number of sequences
 
-    // Common helper functions that subclasses might use
+    // helper functions that subclasses might use
     bool isUnique(const std::vector<int>& u) {
-        // Implementation
         for (int j = 1; j < u.size(); j++) {
             if (u[j - 1] == u[j]) {
                 return false;
@@ -412,7 +411,6 @@ protected:
     }
 
     std::vector<int> unique(const std::vector<int>& u) {
-        // Implementation
         std::vector<int> v;
         v.reserve(u.size());
         v.push_back(u[0]);
