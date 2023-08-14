@@ -10,9 +10,11 @@
 #include <unordered_map> 
 #include <string>
 #include "ColoredCDBG.hpp"
-
-// see around line 440
-
+#include <vector>
+#include <fstream>  // for temp files
+#include <cstdio>  
+#include <cstlib>
+#include <ostream>
 
 class AbstractKmerIndex {
 public:
@@ -279,104 +281,120 @@ public:
         uint32_t rb = std::max(opt.distinguish_range_begin, 0); // range begin filter
         uint32_t re = opt.distinguish_range_end == 0 ? rb : std::max(opt.distinguish_range_end, 0); // range end filter
         if (rb == 0 && re == 0) re = std::numeric_limits<uint32_t>::max();
-        int range_discard = 0;
-        int num_written = 0;
-        // TODO: Reconstruct below
-        for (const auto& unitig : ccdbg) {
-            const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
-            const UnitigMap<DataAccessor<void>, DataStorage<void>, false> unitig_ = unitig;
-            unitigs_v[n % unitigs_v.size()].push_back(std::make_pair(uc, unitig_));
-            n++;
-            if (unitigs_v[unitigs_v.size() - 1].size() >= thresh_size || n >= ccdbg.size()) {
-                for (size_t u_i = 0; u_i < unitigs_v.size(); u_i++) {
-                    workers.emplace_back(
-                        [&, u_i] {
-                            std::ostringstream oss;
-                            int _num_written = 0;
-                            int _range_discard = 0;
-                            for (auto unitig_x : unitigs_v[u_i]) {
-                                auto uc = unitig_x.first;
-                                auto& unitig = (unitig_x.second);
-                                UnitigColors::const_iterator it_uc = uc->begin(unitig);
-                                UnitigColors::const_iterator it_uc_end = uc->end();
-                                std::map<int, std::set<int>> k_map;
-                                for (; it_uc != it_uc_end; ++it_uc) {
-                                    int color = color_map[it_uc.getColorID()];
-                                    k_map[color].insert(it_uc.getKmerPosition());
-                                    // DEBUG:
-                                    // std::cout << color << " " << unitig.getUnitigKmer(it_uc.getKmerPosition()).rep().toString() << " " << unitig.getUnitigKmer(it_uc.getKmerPosition()).toString() << " " << it_uc.getKmerPosition() << " " << unitig.strand << std::endl;
-                                }
-                                std::set<int> positions_to_remove;
-                                if (!opt.distinguish_all_but_one_color && !opt.distinguish_union) {
-                                    int i_ = 0;
-                                    for (const auto& k_elem : k_map) {
-                                        int j_ = 0;
-                                        for (const auto& k_elem2 : k_map) {
-                                            if (j_ > i_ && k_elem.first != k_elem2.first) {
-                                                std::set<int> intersect;
-                                                std::set<int> set_result;
-                                                std::set_intersection(k_elem.second.begin(), k_elem.second.end(), k_elem2.second.begin(), k_elem2.second.end(), std::inserter(intersect, intersect.begin())); //if (k_elem2.second.count(k_elem1.second)) // check if set intersection with k_elem2
-                                                std::set_union(positions_to_remove.begin(), positions_to_remove.end(), intersect.begin(), intersect.end(), std::inserter(set_result, set_result.begin()));
-                                                positions_to_remove = std::move(set_result);
-                                            }
-                                            j_++;
-                                        }
-                                        i_++;
-                                    }
-                                }
-                                else if (!opt.distinguish_union) {
-                                    int i_ = 0;
-                                    if (k_map.size() == tmp_files.size()) {
-                                        for (const auto& k_elem : k_map) {
-                                            i_++;
-                                            if (positions_to_remove.size() == 0) {
-                                                positions_to_remove = k_elem.second;
-                                            }
-                                            else {
-                                                std::set<int> set_result;
-                                                std::set_intersection(positions_to_remove.begin(), positions_to_remove.end(), k_elem.second.begin(), k_elem.second.end(), std::inserter(set_result, set_result.begin()));
-                                                positions_to_remove = std::move(set_result);
-                                            }
-                                        }
-                                    }
-                                }
-                                for (const auto& k_elem : k_map) {
-                                    int curr_pos = -1;
-                                    std::string colored_contig = "";
-                                    auto color = k_elem.first;
-                                    //std::string contig_metadata = " :" + unitig.dist + "," + unitig.len + "," + unitig.size + "," + unitig.strand;
-                                    for (const auto& pos : k_elem.second) {
-                                        if (!positions_to_remove.count(pos)) {
-                                            std::string km = unitig.getUnitigKmer(pos).toString();
-                                            if (curr_pos == -1) { // How to correspond color?
-                                                colored_contig = km;
-                                            }
-                                            else if (pos == curr_pos + 1) {
-                                                colored_contig += km[km.length() - 1];
-                                            }
-                                            else {
-                                                if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << std::to_string(color) << "\n" << colored_contig << "\n"; _num_written++; }
-                                                else _range_discard++;
-                                                colored_contig = km;
-                                            }
-                                            curr_pos = pos;
-                                        }
-                                    }
-                                    if (colored_contig != "") {
-                                        if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << std::to_string(color) << "\n" << colored_contig << "\n"; _num_written++; }
-                                        else _range_discard++;
-                                    }
+        // Define a lambda function that processes each unitig and handles output
+        auto processUnitig = [&](const UnitigColors* uc, const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& unitig) {
+            std::ostringstream oss;
+            int _num_written = 0;
+            int _range_discard = 0;
+
+            UnitigColors::const_iterator it_uc = uc->begin(unitig);
+            UnitigColors::const_iterator it_uc_end = uc->end();
+            std::map<int, std::set<int>> k_map;
+            for (; it_uc != it_uc_end; ++it_uc) {
+                int color = color_map[it_uc.getColorID()];
+                k_map[color].insert(it_uc.getKmerPosition());
+                // DEBUG:
+                // std::cout << color << " " << unitig.getUnitigKmer(it_uc.getKmerPosition()).rep().toString() << " " << unitig.getUnitigKmer(it_uc.getKmerPosition()).toString() << " " << it_uc.getKmerPosition() << " " << unitig.strand << std::endl;
+            }
+        
+            std::set<int> positions_to_remove;
+            // change set logic: 
+            // originally, update positions_to_remove by creating temp set_result
+            // now update positions_to_remove by inserting directly
+            if (!opt.distinguish_all_but_one_color && !opt.distinguish_union) {
+                int i_ = 0;
+                for (const auto& k_elem : k_map) {
+                    int j_ = 0;
+                    for (const auto& k_elem2 : k_map) {
+                        if (j_ > i_ && k_elem.first != k_elem2.first) {
+                            std::set<int> intersect;
+                            std::set_intersection(k_elem.second.begin(), k_elem.second.end(), k_elem2.second.begin(), k_elem2.second.end(), std::inserter(intersect, intersect.begin()));
+                            positions_to_remove.insert(intersect.begin(), intersect.end());
+                        }
+                        j_++;
+                    }
+                    i_++;
+                }
+            }
+            else if (!opt.distinguish_union) {
+                int i_ = 0;
+                if (k_map.size() == tmp_files.size()) {
+                    for (const auto& k_elem : k_map) {
+                        i_++;
+                        if (positions_to_remove.empty()) {
+                            positions_to_remove = k_elem.second;
+                        }
+                        else {
+                            std::set<int> intersect;
+                            std::set_intersection(positions_to_remove.begin(), positions_to_remove.end(), k_elem.second.begin(), k_elem.second.end(), std::inserter(intersect, intersect.begin()));
+                            positions_to_remove = std::move(intersect);
+                        }
+                    }
+                }
+            }
+        
+            for (const auto& k_elem : k_map) {
+                int curr_pos = -1;
+                std::string colored_contig = "";
+                auto color = k_elem.first;
+                const std::set<int>& positions = k_elem.second;
+                //std::string contig_metadata = " :" + unitig.dist + "," + unitig.len + "," + unitig.size + "," + unitig.strand;
+        
+                for (const auto& pos : positions) {
+                    if (!positions_to_remove.count(pos)) {
+                        std::string km = unitig.getUnitigKmer(pos).toString();
+                        if (curr_pos == -1) { // How to correspond color?
+                            colored_contig = km;
+                        }
+                        else if (pos == curr_pos + 1) {
+                            colored_contig += km[km.length() - 1];
+                        }
+                        else {
+                            if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << std::to_string(color) << "\n" << colored_contig << "\n"; _num_written++; }
+                            else _range_discard++;
+                            colored_contig = km;
+                        }
+                        curr_pos = pos;
+                    }
+                }
+                if (colored_contig != "") {
+                    if (colored_contig.length() >= rb && colored_contig.length() <= re) {
+                        oss << ">" << std::to_string(color) << "\n" << colored_contig << "\n";
+                        _num_written++;
+                    }
+                    else {
+                        _range_discard++;
+                    }
+                }
+        
+                return std::make_pair(oss.str(), std::make_pair(_num_written, _range_discard));
+            };
+        
+            for (const auto& unitig : ccdbg) {
+                const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
+                const UnitigMap<DataAccessor<void>, DataStorage<void>, false> unitig_ = unitig;
+                unitigs_v[n % unitigs_v.size()].push_back(std::make_pair(uc, unitig_));
+                n++;
+                if (unitigs_v[unitigs_v.size() - 1].size() >= thresh_size || n >= ccdbg.size()) {
+                    for (size_t u_i = 0; u_i < unitigs_v.size(); u_i++) {
+                        workers.emplace_back(
+                            [&, u_i] {
+                                for (auto unitig_x : unitigs_v[u_i]) {
+                                    auto uc = unitig_x.first;
+                                    auto& unitig = unitig_x.second;
+                                    auto [unitigOutput, unitigStats] = processUnitig(uc, unitig);
+                                    outputBuffer << unitigOutput; // Append unitigOutput to an output buffer or stream
+                                    std::unique_lock<std::mutex> lock(mutex_unitigs);
+                                    o << unitigOutput;
+                                    num_written += unitigStats.first;
+                                    range_discard += unitigStats.second;
                                 }
                             }
-                            std::unique_lock<std::mutex> lock(mutex_unitigs);
-                            o << oss.str();
-                            num_written += _num_written;
-                            range_discard += _range_discard;
-                        }
-                    );
-                }
+                        );
+                    }
                 for (auto& t : workers) t.join();
                 workers.clear();
+    
                 for (size_t u_i = 0; u_i < unitigs_v.size(); u_i++) {
                     unitigs_v[u_i].clear();
                 }
