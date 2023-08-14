@@ -366,10 +366,8 @@ public:
                         _range_discard++;
                     }
                 }
-
             }
-        
-                return std::make_pair(oss.str(), std::make_pair(_num_written, _range_discard));
+            return std::make_pair(oss.str(), std::make_pair(_num_written, _range_discard));
             };
         
             for (const auto& unitig : ccdbg) {
