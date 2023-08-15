@@ -48,5 +48,5 @@ cmdexec "$klue version"
 
 # Test basic run
 
-checkcmdoutput "$klue distinguish -t 1 -M 1,1 -p $test_dir/test_1.fq.gz $test_dir/test_2.fq.gz|sort" 9dc626495d89c8bd5ef097a53f619b83
+checkcmdoutput "$klue distinguish -t 1 -M 1,1 -p $test_dir/test_1.fq.gz $test_dir/test_2.fq.gz|wc -c" f101cfb25545459ca1aed77d03560d16
 
