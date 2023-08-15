@@ -317,6 +317,8 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   if (rb == 0 && re == 0) re = std::numeric_limits<uint32_t>::max();
   int range_discard = 0;
   int num_written = 0;
+
+  std::unordered_set<int> colors_to_retain = { 2 , 4 };
   // TODO: Reconstruct below
   for (const auto& unitig : ccdbg) {
     const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
@@ -343,6 +345,16 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                 // std::cout << color << " " << unitig.getUnitigKmer(it_uc.getKmerPosition()).rep().toString() << " " << unitig.getUnitigKmer(it_uc.getKmerPosition()).toString() << " " << it_uc.getKmerPosition() << " " << unitig.strand << std::endl;
               }
               std::set<int> positions_to_remove;
+
+              for (const auto& k_elem: k_map){
+                int curr_pos = -1;
+                std::string colored_contig = "";
+                auto color = k_elem.first;
+
+                if (colors_to_retain.count(color) == 0){
+                  continue;
+                }
+              }
               if (!opt.distinguish_all_but_one_color && !opt.distinguish_union) {
                 int i_ = 0;
                 for (const auto& k_elem : k_map) {
