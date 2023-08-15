@@ -42,6 +42,11 @@ checkcmdoutput() {
 	fi	
 }
 
+# Test that program can be run
 
+cmdexec "$klue version"
 
+# Test basic run
+
+checkcmdoutput "$klue distinguish -t 1 -M 1,1 -p $test_dir/test_1.fq.gz $test_dir/test_2.fq.gz|sort" 9dc626495d89c8bd5ef097a53f619b83
 
