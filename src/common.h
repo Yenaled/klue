@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <limits>
 #include "kseq.h"
+#include <unordered_set> // for colors_to_retain
 
 #if defined(_MSVC_LANG)
 #define KLUE_CPP_VERSION _MSVC_LANG
@@ -45,11 +46,14 @@ struct ProgramOptions {
   bool stream_out;
   bool distinguish_all_but_one_color;
   bool distinguish_union;
+  bool distinguish_all_but_N_colors;
   int distinguish_range_begin;
   int distinguish_range_end;
   std::vector<int> kmer_multiplicity;
   std::vector<int> inner;
   std::vector<std::string> transfasta;
+  std::unordered_set<int> colors_to_retain;  // for all-but-N
+
 
 ProgramOptions() :
   verbose(false),
@@ -59,6 +63,7 @@ ProgramOptions() :
   stream_out(false),
   distinguish_all_but_one_color(false),
   distinguish_union(false),
+  distinguish_all_but_N_colors(false),
   distinguish_range_begin(0),
   distinguish_range_end(0),
   min_found_colors(-1)
