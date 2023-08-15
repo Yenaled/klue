@@ -62,12 +62,15 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
   int pipe_flag = 0;
   int distinguish_all_flag = 0;
   int distinguish_all_but_one_flag = 0;
+  int distinguish_all_but_N_flag = 0;  // for all-but-N
   const char *opt_string = "o:k:m:t:r:M:g:p";
   static struct option long_options[] = {
     // long args
     {"verbose", no_argument, &verbose_flag, 1},
     {"all", no_argument, &distinguish_all_flag, 1},
     {"all-but-one", no_argument, &distinguish_all_but_one_flag, 1},
+    {"all-but-N-colors", no_argument, &distinguish_all_but_N_flag, 1}, // for all-but-N
+    {"colors-to-retain", required_argument, 0, 'c'},  // for all-but-N
     // short args
     {"output", required_argument, 0, 'o'},
     {"pipe", no_argument, &pipe_flag, 'p'},
@@ -143,6 +146,18 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
       }
       break;
     }
+    // for all-but-N
+    case 'c': {
+        std::string str;
+        stringstream(optarg) >> str;
+        std::stringstream ss(str);
+        while (ss.good()) {
+            std::string s;
+            getline(ss, s, ',');
+            opt.colors_to_retain.push_back(std::atoi(s.c_str()));
+        }
+        break;
+    }
     default: break;
     }
   }
@@ -160,6 +175,10 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
   if (distinguish_all_but_one_flag) {
     opt.distinguish_all_but_one_color = true;
   }
+  // for all-but-N
+  if (distinguish_all_but_N_flag) {
+      opt.distinguish_all_but_N_colors = true;
+  }
 
   for (int i = optind; i < argc; i++) {
     opt.transfasta.push_back(argv[i]);
@@ -176,12 +195,15 @@ void ParseOptionsRefineUnitigs(int argc, char **argv, ProgramOptions& opt) {
   int pipe_flag = 0;
   int distinguish_all_flag = 0;
   int distinguish_all_but_one_flag = 0;
+  int distinguish_all_but_N_flag = 0;  // for all-but-N
   const char *opt_string = "o:k:m:t:r:p";
   static struct option long_options[] = {
     // long args
     {"verbose", no_argument, &verbose_flag, 1},
     {"all", no_argument, &distinguish_all_flag, 1},
     {"all-but-one", no_argument, &distinguish_all_but_one_flag, 1},
+    {"all-but-N-colors", no_argument, &distinguish_all_but_N_flag, 1}, // for all-but-N
+    {"colors-to-retain", required_argument, 0, 'c'},  // for all-but-N
     // short args
     {"output", required_argument, 0, 'o'},
     {"pipe", no_argument, &pipe_flag, 'p'},
@@ -240,6 +262,18 @@ void ParseOptionsRefineUnitigs(int argc, char **argv, ProgramOptions& opt) {
       }
       break;
     }
+    // for all-but-N
+    case 'c': {
+        std::string str;
+        stringstream(optarg) >> str;
+        std::stringstream ss(str);
+        while (ss.good()) {
+            std::string s;
+            getline(ss, s, ',');
+            opt.colors_to_retain.push_back(std::atoi(s.c_str()));
+        }
+        break;
+    }
     default: break;
     }
   }
@@ -256,6 +290,10 @@ void ParseOptionsRefineUnitigs(int argc, char **argv, ProgramOptions& opt) {
   }
   if (distinguish_all_but_one_flag) {
     opt.distinguish_all_but_one_color = true;
+  }
+  // for all-but-N
+  if (distinguish_all_but_N_flag) {
+      opt.distinguish_all_but_N_colors = true;
   }
   
   for (int i = optind; i < argc; i++) {
@@ -421,6 +459,12 @@ bool CheckOptionsDistinguish(ProgramOptions& opt) {
     cerr << "Error: Cannot use multiple distinguish options" << endl;
     ret = false;
   }
+
+  // for all-but-N
+  if (opt.distinguish_all_but_N_colors && !opt.colors_to_retain.empty()) {
+      cerr << "Error: Cannot use both --all-but-N-colors and --colors-to-retain options" << endl;
+      ret = false;
+  }
   
   if (opt.kmer_multiplicity.size() != opt.transfasta.size()) {
     cerr << "Error: k-mer multiplicities must match the number of input files" << endl;
@@ -511,6 +555,12 @@ bool CheckOptionsRefineUnitigs(ProgramOptions& opt) {
   if (opt.distinguish_union && opt.distinguish_all_but_one_color) {
     cerr << "Error: Cannot use multiple distinguish options" << endl;
     ret = false;
+  }
+
+  // for all-but-N
+  if (opt.distinguish_all_but_N_colors && !opt.colors_to_retain.empty()) {
+      cerr << "Error: Cannot use both --all-but-N-colors and --colors-to-retain options" << endl;
+      ret = false;
   }
   
   if (opt.g != 0) {
@@ -738,7 +788,7 @@ int main(int argc, char *argv[]) {
       } else {
         Kmer::set_k(opt.k);
         KmerIndex index(opt);
-        index.BuildDistinguishingGraph(opt, opt.transfasta);
+        index.BuildDistinguishingGraph(opt, opt.transfasta, /*** opt.colors_to_retain ***/);  // for all-but-N
         if (!opt.map_file.empty()) { // Write out mapping file (a type of t2g file)
           std::ofstream out_map_f;
           out_map_f.open(opt.map_file);
