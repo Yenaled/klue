@@ -74,8 +74,11 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
   int l = 0;
   num_trans = 0;
   size_t range_discard = 0;
-  int min_color_num = 2; // get rid of this
-  int max_color_num = 8; // get rid of this
+  // don't need this
+  /***
+  int min_color_num = 2;
+  int max_color_num = 8;
+  ***/
   uint32_t rb = std::max(opt.distinguish_range_begin,0); // range begin filter
   uint32_t re = opt.distinguish_range_end == 0 ? rb : std::max(opt.distinguish_range_end,0); // range end filter
   if (rb == 0 && re == 0) re = std::numeric_limits<uint32_t>::max();
@@ -114,14 +117,12 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
       if (str.length() < k) {
         continue;
       }
-      // num_trans = current number of extracted sequences from FASTA input
-      // don't need this 
+     // don't need this 
       /***
-      if (min_color_num > 0 && num_trans < min_color_num) { // specify contig extraction
+      if (min_color_num > 0 && num_trans < min_color_num) {
           continue;
       }
-      // Check if the current color has reached the maximum desired contig number
-      if (max_color_num > 0 && num_trans >= max_color_num) { // specify contig extraction
+      if (max_color_num > 0 && num_trans >= max_color_num) {
           break;
       }
       ***/
@@ -137,9 +138,9 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
     fp=0;
   }
 
-  // this works, is it necessary? have if(){} above
+  // don't need this
   /***
-  if (max_color_num > 0 && num_trans >= max_color_num) { // specify contig extraction
+  if (max_color_num > 0 && num_trans >= max_color_num) {
       return;
   }
   ***/
@@ -340,24 +341,22 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   uint32_t rb = std::max(opt.distinguish_range_begin,0); // range begin filter
   uint32_t re = opt.distinguish_range_end == 0 ? rb : std::max(opt.distinguish_range_end,0); // range end filter
   if (rb == 0 && re == 0) re = std::numeric_limits<uint32_t>::max();
- 
   
   int range_discard = 0;
   int num_written = 0;
 
-
-  // TESTING only, add opt.min_color_num to ProgramOptins
+  // DEBUG:
   int min_color_num = 2;
   int max_color_num = 8;
-  // std::unordered_set<int> colors_to_retain; // TESTING only, add colors_to_retain to ProgramOptions
-  
-  // sequences derived from different tissue samples are assigned different colors
-  // i.e. AGT from sample 1 and sample 2 will have different colors
+  // int min_color_num = opt.min_colors;
+  // int max_color_num = opt.max_colors;
   // how does user specify which colors to retain ?
 
+  // add to ProgramOptions
   /***
-  int min_color_num = opt.min_color_num; // Minimum number of colors
-  int max_color_num = opt.max_color_num; // Maximum number of colors
+  int min_color_num = opt.minColorNum; // Minimum number of colors
+  int max_color_num = opt.maxColorNum; // Maximum number of colors
+  std::unordered_set<int> colors_to_retain = opt.colorsToRetain;
   ***/
   // TODO: Reconstruct below
   for (const auto& unitig : ccdbg) {
@@ -386,7 +385,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
               }
               std::set<int> positions_to_remove;
               
-              // try this out
+              // DEBUG:
               // generate set of ALL colors
               std::unordered_set<int> unique_colors;
               for (const auto& k_elem : k_map) {
@@ -394,6 +393,8 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                   unique_colors.insert(color);
               }
 
+              // DEBUG:
+              // remove every other color from generated set
               bool remove = true;
               for (auto it = unique_colors.begin(); it != unique_colors.end();) {
                   if (remove) {
@@ -419,7 +420,9 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                   ***/
                   // retain color based on specified set of colors
                   // if current color IS IN (>0) colors_to_retain, and maps to min/max number of colors
+                  // DEBUG:
                   if (unique_colors.count(color) > 0 && k_map.size() >= min_color_num && k_map.size() <= max_color_num) {
+                  // actual: 
                   // if (colors_to_retain.count(color) > 0 && k_map.size() >= min_color_num && k_map.size() <= max_color_num) {
                       continue;
                   }
