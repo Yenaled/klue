@@ -62,7 +62,7 @@ void ParseOptionsDistinguish(int argc, char** argv, ProgramOptions& opt) {
     int pipe_flag = 0;
     int distinguish_all_flag = 0;
     int distinguish_all_but_one_flag = 0;
-    const char* opt_string = "o:k:m:t:r:M:g:p:n:x:R";
+    const char* opt_string = "o:k:m:t:r:M:g:p";
     static struct option long_options[] = {
         // long args
         {"verbose", no_argument, &verbose_flag, 1},
@@ -77,9 +77,6 @@ void ParseOptionsDistinguish(int argc, char** argv, ProgramOptions& opt) {
         {"map-file", required_argument, 0, 'g'},
         {"threads", required_argument, 0, 't'},
         {"range", required_argument, 0, 'r'},
-        {"min-association", required_argument, 0, 'n'},
-        {"max-association", required_argument, 0, 'x'},
-        {"colors-to-retain", required_argument, 0, 'R'},
         {0,0,0,0}
     };
     int c;
@@ -146,18 +143,6 @@ void ParseOptionsDistinguish(int argc, char** argv, ProgramOptions& opt) {
             }
             break;
         }
-        case 'n': {
-            stringstream(optarg) >> opt.min_colors;
-            break;
-        }
-        case 'x': {
-            stringstream(optarg) >> opt.max_colors;
-            break;
-        }
-        case 'R': {
-            stringstream(optarg) >> opt.colors_to_retain;
-            break;
-        }
         default: break;
         }
     }
@@ -191,7 +176,7 @@ void ParseOptionsRefineUnitigs(int argc, char** argv, ProgramOptions& opt) {
     int pipe_flag = 0;
     int distinguish_all_flag = 0;
     int distinguish_all_but_one_flag = 0;
-    const char* opt_string = "o:k:m:t:r:p:n:x:R";
+    const char* opt_string = "o:k:m:t:r:p";
     static struct option long_options[] = {
         // long args
         {"verbose", no_argument, &verbose_flag, 1},
@@ -204,9 +189,6 @@ void ParseOptionsRefineUnitigs(int argc, char** argv, ProgramOptions& opt) {
         {"min-size", required_argument, 0, 'm'},
         {"threads", required_argument, 0, 't'},
         {"range", required_argument, 0, 'r'},
-        {"min-colors", required_argument, 0, 'n'},
-        {"max-colors", required_argument, 0, 'x'},
-        {"colors-to-retain", required_argument, 0, 'R'},
         {0,0,0,0}
     };
     int c;
@@ -256,18 +238,6 @@ void ParseOptionsRefineUnitigs(int argc, char** argv, ProgramOptions& opt) {
                 if (i == 1) opt.distinguish_range_end = std::atoi(range_val.c_str());
                 i++;
             }
-            break;
-        }
-        case 'n': {
-            stringstream(optarg) >> opt.min_colors;
-            break;
-        }
-        case 'x': {
-            stringstream(optarg) >> opt.max_colors;
-            break;
-        }
-        case 'R': {
-            stringstream(optarg) >> opt.colors_to_retain;
             break;
         }
         default: break;
@@ -563,21 +533,6 @@ bool CheckOptionsRefineUnitigs(ProgramOptions& opt) {
     if (opt.distinguish_range_end < opt.distinguish_range_begin) {
         cerr << "Error: invalid range supplied" << endl;
         ret = false;
-    }
-
-    if (opt.min_colors <= 0) {
-        cerr << "Error: min-colors must be a positive integer." << endl;
-        ret = 1;
-    }
-
-    if (opt.max_colors <= 0) {
-        cerr << "Error: max-colors must be a positive integer." << endl;
-        ret = 1;
-    }
-
-    if (opt.colors_to_retain <= 0) {
-        cerr << "Error: colors-to-retain must be a positive integer." << endl;
-        ret = 1;
     }
 
     return ret;
