@@ -74,8 +74,8 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
   int l = 0;
   num_trans = 0;
   size_t range_discard = 0;
-  int min_contig_num = 0;  // specify contig extraction
-  int max_contig_num = 20; // specify contig extraction
+  int min_contig_num = 2;  // specify contig extraction
+  int max_contig_num = 8; // specify contig extraction
   uint32_t rb = std::max(opt.distinguish_range_begin,0); // range begin filter
   uint32_t re = opt.distinguish_range_end == 0 ? rb : std::max(opt.distinguish_range_end,0); // range end filter
   if (rb == 0 && re == 0) re = std::numeric_limits<uint32_t>::max();
@@ -337,9 +337,9 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   int num_written = 0;
 
   // TESTING only, add opt.min_contig_num to ProgramOptins
-  int min_contig_num = 0;  // specify contig extraction
-  int max_contig_num = 20; // specify contig extraction
-  std::unordered_set<int> colors_to_retain = { 2 , 4 , 7}; // TESTING only, add colors_to_retain to ProgramOptions
+  int min_contig_num = 2;  // specify contig extraction
+  int max_contig_num = 8; // specify contig extraction
+  std::unordered_set<int> colors_to_retain = { 2 , 4 }; // TESTING only, add colors_to_retain to ProgramOptions
   // TODO: Reconstruct below
   for (const auto& unitig : ccdbg) {
     const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
@@ -385,39 +385,39 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                   continue;
                 }
                 ***/
-                if (!opt.distinguish_all_but_one_color && !opt.distinguish_union) {
-                    int i_ = 0;
-                    for (const auto& k_elem : k_map) {
-                        int j_ = 0;
-                        for (const auto& k_elem2 : k_map) {
-                            if (j_ > i_ && k_elem.first != k_elem2.first) {
-                                std::set<int> intersect;
-                                std::set<int> set_result;
-                                std::set_intersection(k_elem.second.begin(), k_elem.second.end(), k_elem2.second.begin(), k_elem2.second.end(), std::inserter(intersect, intersect.begin())); //if (k_elem2.second.count(k_elem1.second)) // check if set intersection with k_elem2
-                                std::set_union(positions_to_remove.begin(), positions_to_remove.end(), intersect.begin(), intersect.end(), std::inserter(set_result, set_result.begin()));
-                                positions_to_remove = std::move(set_result);
-                            }
-                            j_++;
-                        }
-                        i_++;
-                    }
-                }
-                else if (!opt.distinguish_union) {
-                    int i_ = 0;
-                    if (k_map.size() == tmp_files.size()) {
-                        for (const auto& k_elem : k_map) {
-                            i_++;
-                            if (positions_to_remove.size() == 0) {
-                                positions_to_remove = k_elem.second;
-                            }
-                            else {
-                                std::set<int> set_result;
-                                std::set_intersection(positions_to_remove.begin(), positions_to_remove.end(), k_elem.second.begin(), k_elem.second.end(), std::inserter(set_result, set_result.begin()));
-                                positions_to_remove = std::move(set_result);
-                            }
-                        }
-                    }
-                }
+              }
+              if (!opt.distinguish_all_but_one_color && !opt.distinguish_union) {
+                  int i_ = 0;
+                  for (const auto& k_elem : k_map) {
+                      int j_ = 0;
+                      for (const auto& k_elem2 : k_map) {
+                          if (j_ > i_ && k_elem.first != k_elem2.first) {
+                              std::set<int> intersect;
+                              std::set<int> set_result;
+                              std::set_intersection(k_elem.second.begin(), k_elem.second.end(), k_elem2.second.begin(), k_elem2.second.end(), std::inserter(intersect, intersect.begin())); //if (k_elem2.second.count(k_elem1.second)) // check if set intersection with k_elem2
+                              std::set_union(positions_to_remove.begin(), positions_to_remove.end(), intersect.begin(), intersect.end(), std::inserter(set_result, set_result.begin()));
+                              positions_to_remove = std::move(set_result);
+                          }
+                          j_++;
+                      }
+                      i_++;
+                  }
+              }
+              else if (!opt.distinguish_union) {
+                  int i_ = 0;
+                  if (k_map.size() == tmp_files.size()) {
+                      for (const auto& k_elem : k_map) {
+                          i_++;
+                          if (positions_to_remove.size() == 0) {
+                              positions_to_remove = k_elem.second;
+                          }
+                          else {
+                              std::set<int> set_result;
+                              std::set_intersection(positions_to_remove.begin(), positions_to_remove.end(), k_elem.second.begin(), k_elem.second.end(), std::inserter(set_result, set_result.begin()));
+                              positions_to_remove = std::move(set_result);
+                          }
+                      }
+                  }
               }
               
               for (const auto& k_elem : k_map) {
@@ -425,10 +425,12 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                 std::string colored_contig = "";
                 auto color = k_elem.first;
 
+                /***
                 // Check if the color should be retained
                 if (colors_to_retain.count(color) == 0) {
                     continue; // Skip positions not corresponding to retained colors
                 }
+                ***/
 
                 //std::string contig_metadata = " :" + unitig.dist + "," + unitig.len + "," + unitig.size + "," + unitig.strand;
                 for (const auto &pos : k_elem.second) {
