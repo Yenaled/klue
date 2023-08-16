@@ -147,14 +147,25 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
       break;
     }
     // for all-but-N
-    case 'c': {
+    case 'N': {
         std::string str;
         stringstream(optarg) >> str;
         std::stringstream ss(str);
         while (ss.good()) {
             std::string s;
             getline(ss, s, ',');
-            opt.colors_to_retain.push_back(std::atoi(s.c_str()));
+            opt.distinguish_all_but_N_colors.insert(std::atoi(s.c_str()));
+        }
+        break;
+    }
+    case 'R': {
+        std::string str;
+        stringstream(optarg) >> str;
+        std::stringstream ss(str);
+        while (ss.good()) {
+            std::string s;
+            getline(ss, s, ',');
+            opt.colors_to_retain.insert(std::atoi(s.c_str()));
         }
         break;
     }
@@ -263,14 +274,25 @@ void ParseOptionsRefineUnitigs(int argc, char **argv, ProgramOptions& opt) {
       break;
     }
     // for all-but-N
-    case 'c': {
+    case 'N': {
         std::string str;
         stringstream(optarg) >> str;
         std::stringstream ss(str);
         while (ss.good()) {
             std::string s;
             getline(ss, s, ',');
-            opt.colors_to_retain.push_back(std::atoi(s.c_str()));
+            opt.distinguish_all_but_N_colors.insert(std::atoi(s.c_str()));
+        }
+        break;
+    }
+    case 'R': {
+        std::string str;
+        stringstream(optarg) >> str;
+        std::stringstream ss(str);
+        while (ss.good()) {
+            std::string s;
+            getline(ss, s, ',');
+            opt.colors_to_retain.insert(std::atoi(s.c_str()));
         }
         break;
     }
@@ -384,6 +406,29 @@ void ParseOptionsRefine(int argc, char **argv, ProgramOptions& opt) {
         i++;
       }
       break;
+    }
+    // for all-but-N
+    case 'N': {
+        std::string str;
+        stringstream(optarg) >> str;
+        std::stringstream ss(str);
+        while (ss.good()) {
+            std::string s;
+            getline(ss, s, ',');
+            opt.distinguish_all_but_N_colors.insert(std::atoi(s.c_str()));
+        }
+        break;
+    }
+    case 'R': {
+        std::string str;
+        stringstream(optarg) >> str;
+        std::stringstream ss(str);
+        while (ss.good()) {
+            std::string s;
+            getline(ss, s, ',');
+            opt.colors_to_retain.insert(std::atoi(s.c_str()));
+        }
+        break;
     }
     default: break;
     }
