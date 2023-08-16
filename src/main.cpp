@@ -69,8 +69,8 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
     {"verbose", no_argument, &verbose_flag, 1},
     {"all", no_argument, &distinguish_all_flag, 1},
     {"all-but-one", no_argument, &distinguish_all_but_one_flag, 1},
-    {"all-but-N-colors", no_argument, &distinguish_all_but_N_flag, 1}, // for all-but-N
-    {"colors-to-retain", required_argument, 0, 'c'},  // for all-but-N
+    {"all-but-N-colors", no_argument, &distinguish_all_but_N_flag, 1, 'N'}, // for all-but-N
+    {"colors-to-retain", required_argument, 0, 'R'},  // for all-but-N
     // short args
     {"output", required_argument, 0, 'o'},
     {"pipe", no_argument, &pipe_flag, 'p'},
@@ -148,13 +148,7 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
     }
     // for all-but-N
     case 'N': {
-        std::string str;
-        stringstream(optarg) >> str;
-        std::stringstream ss(str);
-        while (ss.good()) {
-            std::string s;
-            getline(ss, s, ',');
-            opt.distinguish_all_but_N_colors.insert(std::atoi(s.c_str()));
+        opt.distinguish_all_but_N_colors = true;
         }
         break;
     }
@@ -213,8 +207,8 @@ void ParseOptionsRefineUnitigs(int argc, char **argv, ProgramOptions& opt) {
     {"verbose", no_argument, &verbose_flag, 1},
     {"all", no_argument, &distinguish_all_flag, 1},
     {"all-but-one", no_argument, &distinguish_all_but_one_flag, 1},
-    {"all-but-N-colors", no_argument, &distinguish_all_but_N_flag, 1}, // for all-but-N
-    {"colors-to-retain", required_argument, 0, 'c'},  // for all-but-N
+    {"all-but-N-colors", no_argument, &distinguish_all_but_N_flag, 1, 'N'}, // for all-but-N
+    {"colors-to-retain", required_argument, 0, 'R'},  // for all-but-N
     // short args
     {"output", required_argument, 0, 'o'},
     {"pipe", no_argument, &pipe_flag, 'p'},
@@ -275,15 +269,9 @@ void ParseOptionsRefineUnitigs(int argc, char **argv, ProgramOptions& opt) {
     }
     // for all-but-N
     case 'N': {
-        std::string str;
-        stringstream(optarg) >> str;
-        std::stringstream ss(str);
-        while (ss.good()) {
-            std::string s;
-            getline(ss, s, ',');
-            opt.distinguish_all_but_N_colors.insert(std::atoi(s.c_str()));
-        }
-        break;
+        opt.distinguish_all_but_N_colors = true;
+    }
+            break;
     }
     case 'R': {
         std::string str;
@@ -409,15 +397,9 @@ void ParseOptionsRefine(int argc, char **argv, ProgramOptions& opt) {
     }
     // for all-but-N
     case 'N': {
-        std::string str;
-        stringstream(optarg) >> str;
-        std::stringstream ss(str);
-        while (ss.good()) {
-            std::string s;
-            getline(ss, s, ',');
-            opt.distinguish_all_but_N_colors.insert(std::atoi(s.c_str()));
-        }
-        break;
+        opt.distinguish_all_but_N_colors = true;
+    }
+            break;
     }
     case 'R': {
         std::string str;
@@ -833,7 +815,7 @@ int main(int argc, char *argv[]) {
       } else {
         Kmer::set_k(opt.k);
         KmerIndex index(opt);
-        index.BuildDistinguishingGraph(opt, opt.transfasta, /*** opt.colors_to_retain ***/);  // for all-but-N
+        index.BuildDistinguishingGraph(opt, opt.transfasta/*** , opt.colors_to_retain ***/);  // for all-but-N
         if (!opt.map_file.empty()) { // Write out mapping file (a type of t2g file)
           std::ofstream out_map_f;
           out_map_f.open(opt.map_file);
