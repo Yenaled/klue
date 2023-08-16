@@ -74,6 +74,9 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
   int l = 0;
   num_trans = 0;
   size_t range_discard = 0;
+  // for specific contig functionality
+  int min_contig_num = 0;
+  int max_contig_num = 20;
   uint32_t rb = std::max(opt.distinguish_range_begin,0); // range begin filter
   uint32_t re = opt.distinguish_range_end == 0 ? rb : std::max(opt.distinguish_range_end,0); // range end filter
   if (rb == 0 && re == 0) re = std::numeric_limits<uint32_t>::max();
@@ -112,9 +115,20 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
       if (str.length() < k) {
         continue;
       }
+
+      // Check if the current color has reached the maximum desired contig number
+      if (max_contig_num > 0 && num_trans >= max_contig_num) {
+          break;
+      }
+
       if (str.length() >= rb && str.length() <= re) {
         *(ofs[color]) << ">" << std::to_string(color) << "\n" << str << "\n";
         num_trans++;
+        // Check if the current number of contigs has reached the minimum desired number
+        if (min_contig_num > 0 && num_trans >= min_contig_num) {
+            // Break out of the loop if the minimum number of contigs has been reached
+            break;
+        }
       } else {
         range_discard++;
       }
@@ -122,6 +136,12 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
     gzclose(fp);
     fp=0;
   }
+
+  // does this work??
+  if (max_contig_num > 0 && num_trans >= max_contig_num) {
+      return;
+  }
+
   for (auto& of : ofs) (*of).close(); // Close files now that we've outputted everything
   for (auto& of : ofs) delete of; // Free pointer memory
   if (range_discard > 0) {
@@ -315,9 +335,15 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   uint32_t rb = std::max(opt.distinguish_range_begin,0); // range begin filter
   uint32_t re = opt.distinguish_range_end == 0 ? rb : std::max(opt.distinguish_range_end,0); // range end filter
   if (rb == 0 && re == 0) re = std::numeric_limits<uint32_t>::max();
+ 
+  
   int range_discard = 0;
   int num_written = 0;
 
+
+  // TESTING
+  int min_contig_num = 0;
+  int max_contig_num = 20;
   std::unordered_set<int> colors_to_retain = { 2 , 4 }; // TESTING only, add colors_to_retain to ProgramOptions
   // TODO: Reconstruct below
   for (const auto& unitig : ccdbg) {
@@ -426,6 +452,11 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
             o << oss.str();
             num_written += _num_written;
             range_discard += _range_discard;
+
+            // does this work?
+            if (max_contig_num > 0 && num_written >= max_contig_num) {
+                return;
+            }
           }
         );
       }
