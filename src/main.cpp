@@ -69,7 +69,7 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
     {"verbose", no_argument, &verbose_flag, 1},
     {"all", no_argument, &distinguish_all_flag, 1},
     {"all-but-one", no_argument, &distinguish_all_but_one_flag, 1},
-    {"all-but-N-colors", no_argument, &distinguish_all_but_N_flag, 1, // for all-but-N
+    {"all-but-N-colors", no_argument, &distinguish_all_but_N_flag, 1}, // for all-but-N
     {"colors-to-retain", required_argument, 0, 'R'},  // for all-but-N
     // short args
     {"output", required_argument, 0, 'o'},
