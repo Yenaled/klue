@@ -74,7 +74,7 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
   int l = 0;
   num_trans = 0;
   size_t range_discard = 0;
-  int min_contig_num = 2;  // specify contig extraction
+  int min_contig_num = 0;  // specify contig extraction
   int max_contig_num = 8; // specify contig extraction
   uint32_t rb = std::max(opt.distinguish_range_begin,0); // range begin filter
   uint32_t re = opt.distinguish_range_end == 0 ? rb : std::max(opt.distinguish_range_end,0); // range end filter
@@ -337,7 +337,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   int num_written = 0;
 
   // TESTING only, add opt.min_contig_num to ProgramOptins
-  int min_contig_num = 2;  // specify contig extraction
+  int min_contig_num = 0;  // specify contig extraction
   int max_contig_num = 8; // specify contig extraction
   std::unordered_set<int> colors_to_retain = { 2 , 4 , 7}; // TESTING only, add colors_to_retain to ProgramOptions
   // TODO: Reconstruct below
