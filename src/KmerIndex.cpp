@@ -74,8 +74,8 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
   int l = 0;
   num_trans = 0;
   size_t range_discard = 0;
-  int min_contig_num = 2;  // specify contig extraction
-  int max_contig_num = 8; // specify contig extraction
+  int min_color_num = 2;  // specify contig extraction
+  int max_color_num = 8; // specify contig extraction
   uint32_t rb = std::max(opt.distinguish_range_begin,0); // range begin filter
   uint32_t re = opt.distinguish_range_end == 0 ? rb : std::max(opt.distinguish_range_end,0); // range end filter
   if (rb == 0 && re == 0) re = std::numeric_limits<uint32_t>::max();
@@ -114,17 +114,19 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
       if (str.length() < k) {
         continue;
       }
+      // num_trans = current number of extracted contigs
+      // Check if the current number of contigs has reached the minimum desired number
+      if (min_color_num > 0 && num_trans < min_color_num) { // specify contig extraction
+          continue;
+      }
       // Check if the current color has reached the maximum desired contig number
-      if (max_contig_num > 0 && num_trans >= max_contig_num) { // specify contig extraction
+      if (max_color_num > 0 && num_trans >= max_color_num) { // specify contig extraction
           break;
       }
       if (str.length() >= rb && str.length() <= re) {
         *(ofs[color]) << ">" << std::to_string(color) << "\n" << str << "\n";
         num_trans++;
-        // Check if the current number of contigs has reached the minimum desired number
-        if (min_contig_num > 0 && num_trans >= min_contig_num) { // specify contig extraction
-            break;
-        }
+        
       } else {
         range_discard++;
       }
@@ -133,8 +135,8 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
     fp=0;
   }
 
-  // this works, is it necessary?
-  if (max_contig_num > 0 && num_trans >= max_contig_num) { // specify contig extraction
+  // this works, is it necessary? have if(){} above
+  if (max_color_num > 0 && num_trans >= max_color_num) { // specify contig extraction
       return;
   }
 
@@ -146,6 +148,9 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
   BuildDistinguishingGraph(opt, tmp_files, true); // TODO: modify to handle temporary files
 }
 
+
+// TODO extend color selection functionality
+// TODO 
 void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::vector<std::string>& transfasta, bool reconstruct) {
   k = opt.k;
   std::cerr << "[build] k-mer length: " << k << std::endl;
@@ -336,10 +341,15 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   int range_discard = 0;
   int num_written = 0;
 
-  // TESTING only, add opt.min_contig_num to ProgramOptins
-  int min_contig_num = 2;  // specify contig extraction
-  int max_contig_num = 8; // specify contig extraction
+  // TESTING only, add opt.min_color_num to ProgramOptins
+  int min_color_num = 2;  // specify contig extraction
+  int max_color_num = 8; // specify contig extraction
   std::unordered_set<int> colors_to_retain = { 2 , 4 }; // TESTING only, add colors_to_retain to ProgramOptions
+  
+  /***
+  int min_color_num = opt.min_color_num; // Minimum number of colors
+  int max_color_num = opt.max_color_num; // Maximum number of colors
+  ***/
   // TODO: Reconstruct below
   for (const auto& unitig : ccdbg) {
     const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
@@ -368,70 +378,61 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
               std::set<int> positions_to_remove;
               
               // Check if the color should be retained
-              for (const auto& k_elem: k_map){
-                int curr_pos = -1;
-                std::string colored_contig = "";
-                auto color = k_elem.first;
+              for (const auto& k_elem : k_map) {
+                  int curr_pos = -1;
+                  std::string colored_contig = "";
+                  auto color = k_elem.first;
 
-                // TESTING only, add opt.colorsToRetain to ProgramOptions
-                // retain color based on specified set of colors
-                if (colors_to_retain.count(color) == 0){ // if the current color is NOT in colors_to_retain
-                  continue;                              // skip current iteration of loop (i.e. leave out of graph?)
-                }
-
-                // add to Program options
-                /***
-                if (opt.distinguish_all_but_N_colors && opt.colors_to_retain.count(color) == 0){
-                  continue;
-                }
-                ***/
-              }
-              if (!opt.distinguish_all_but_one_color && !opt.distinguish_union) {
-                  int i_ = 0;
-                  for (const auto& k_elem : k_map) {
-                      int j_ = 0;
-                      for (const auto& k_elem2 : k_map) {
-                          if (j_ > i_ && k_elem.first != k_elem2.first) {
-                              std::set<int> intersect;
-                              std::set<int> set_result;
-                              std::set_intersection(k_elem.second.begin(), k_elem.second.end(), k_elem2.second.begin(), k_elem2.second.end(), std::inserter(intersect, intersect.begin())); //if (k_elem2.second.count(k_elem1.second)) // check if set intersection with k_elem2
-                              std::set_union(positions_to_remove.begin(), positions_to_remove.end(), intersect.begin(), intersect.end(), std::inserter(set_result, set_result.begin()));
-                              positions_to_remove = std::move(set_result);
-                          }
-                          j_++;
-                      }
-                      i_++;
+                  // TESTING only, add opt.colorsToRetain to ProgramOptions
+                  // add to Program options
+                  /***
+                  if (opt.distinguish_all_but_N_colors && opt.colors_to_retain.count(color) == 0){
+                    continue;
                   }
-              }
-              else if (!opt.distinguish_union) {
-                  int i_ = 0;
-                  if (k_map.size() == tmp_files.size()) {
+                  ***/
+                  // retain color based on specified set of colors
+                  // if current color IS IN (>0) colors_to_retain, and maps to min/max number of colors
+                  if (colors_to_retain.count(color) > 0 && k_map.size() >= min_color_num && k_map.size() <= max_color_num) {
+                      continue;
+                  }
+                  if (!opt.distinguish_all_but_one_color && !opt.distinguish_union) {
+                      int i_ = 0;
                       for (const auto& k_elem : k_map) {
-                          i_++;
-                          if (positions_to_remove.size() == 0) {
-                              positions_to_remove = k_elem.second;
+                          int j_ = 0;
+                          for (const auto& k_elem2 : k_map) {
+                              if (j_ > i_ && k_elem.first != k_elem2.first) {
+                                  std::set<int> intersect;
+                                  std::set<int> set_result;
+                                  std::set_intersection(k_elem.second.begin(), k_elem.second.end(), k_elem2.second.begin(), k_elem2.second.end(), std::inserter(intersect, intersect.begin())); //if (k_elem2.second.count(k_elem1.second)) // check if set intersection with k_elem2
+                                  std::set_union(positions_to_remove.begin(), positions_to_remove.end(), intersect.begin(), intersect.end(), std::inserter(set_result, set_result.begin()));
+                                  positions_to_remove = std::move(set_result);
+                              }
+                              j_++;
                           }
-                          else {
-                              std::set<int> set_result;
-                              std::set_intersection(positions_to_remove.begin(), positions_to_remove.end(), k_elem.second.begin(), k_elem.second.end(), std::inserter(set_result, set_result.begin()));
-                              positions_to_remove = std::move(set_result);
+                          i_++;
+                      }
+                  }
+                  else if (!opt.distinguish_union) {
+                      int i_ = 0;
+                      if (k_map.size() == tmp_files.size()) {
+                          for (const auto& k_elem : k_map) {
+                              i_++;
+                              if (positions_to_remove.size() == 0) {
+                                  positions_to_remove = k_elem.second;
+                              }
+                              else {
+                                  std::set<int> set_result;
+                                  std::set_intersection(positions_to_remove.begin(), positions_to_remove.end(), k_elem.second.begin(), k_elem.second.end(), std::inserter(set_result, set_result.begin()));
+                                  positions_to_remove = std::move(set_result);
+                              }
                           }
                       }
                   }
-              }
-              
+              }              
               for (const auto& k_elem : k_map) {
                 int curr_pos = -1;
                 std::string colored_contig = "";
                 auto color = k_elem.first;
-
-                /***
-                // Check if the color should be retained
-                if (colors_to_retain.count(color) == 0) {
-                    continue; // Skip positions not corresponding to retained colors
-                }
-                ***/
-
                 //std::string contig_metadata = " :" + unitig.dist + "," + unitig.len + "," + unitig.size + "," + unitig.strand;
                 for (const auto &pos : k_elem.second) {
                   if (!positions_to_remove.count(pos)) {
@@ -458,7 +459,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
             o << oss.str();
             num_written += _num_written;
             range_discard += _range_discard;
-            if (max_contig_num > 0 && num_written >= max_contig_num) {
+            if (max_color_num > 0 && num_written >= max_color_num) {
                 return;
             }
           }
