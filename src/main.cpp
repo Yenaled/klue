@@ -77,6 +77,8 @@ void ParseOptionsDistinguish(int argc, char** argv, ProgramOptions& opt) {
         {"map-file", required_argument, 0, 'g'},
         {"threads", required_argument, 0, 't'},
         {"range", required_argument, 0, 'r'},
+        {"min-association", required_argument, 0, 'n'},
+        {"max-association", required_argument, 0, 'x'},
         {0,0,0,0}
     };
     int c;
@@ -143,6 +145,14 @@ void ParseOptionsDistinguish(int argc, char** argv, ProgramOptions& opt) {
             }
             break;
         }
+        case 'n': {  // min-colors
+            stringstream(optarg) >> opt.min_colors;
+            break;
+        }
+        case 'x': {  // max-colors
+            stringstream(optarg) >> opt.max_colors;
+            break;
+        }
         default: break;
         }
     }
@@ -189,6 +199,8 @@ void ParseOptionsRefineUnitigs(int argc, char** argv, ProgramOptions& opt) {
         {"min-size", required_argument, 0, 'm'},
         {"threads", required_argument, 0, 't'},
         {"range", required_argument, 0, 'r'},
+        {"min-association", required_argument, 0, 'n'},
+        {"max-association", required_argument, 0, 'x'},
         {0,0,0,0}
     };
     int c;
@@ -240,6 +252,14 @@ void ParseOptionsRefineUnitigs(int argc, char** argv, ProgramOptions& opt) {
             }
             break;
         }
+        case 'n': {  // min-colors
+            stringstream(optarg) >> opt.min_colors;
+            break;
+        }
+        case 'x': {  // max-colors
+            stringstream(optarg) >> opt.max_colors;
+            break;
+        }
         default: break;
         }
     }
@@ -281,6 +301,8 @@ void ParseOptionsRefine(int argc, char** argv, ProgramOptions& opt) {
         {"range", required_argument, 0, 'r'},
         {"min", required_argument, 0, 'm'},
         {"kmer-size", required_argument, 0, 'k'},
+        {"min-association", required_argument, 0, 'n'},
+        {"max-association", required_argument, 0, 'x'},
         {0,0,0,0}
     };
     int c;
@@ -345,6 +367,14 @@ void ParseOptionsRefine(int argc, char** argv, ProgramOptions& opt) {
                 if (i == 1) opt.distinguish_range_end = std::atoi(range_val.c_str());
                 i++;
             }
+            break;
+        }
+        case 'n': {  // min-colors
+            stringstream(optarg) >> opt.min_colors;
+            break;
+        }
+        case 'x': {  // max-colors
+            stringstream(optarg) >> opt.max_colors;
             break;
         }
         default: break;
@@ -454,6 +484,22 @@ bool CheckOptionsDistinguish(ProgramOptions& opt) {
         ret = false;
     }
 
+    if (opt.min_colors <= 0) {
+        cerr << "Error: min-colors must be a positive integer." << endl;
+        ret = false;
+    }
+
+    if (opt.max_colors <= 0) {
+        cerr << "Error: max-colors must be a positive integer." << endl;
+        ret = false;
+    }
+
+    /***
+    if (opt.colors_to_retain.all > 0) { 
+        cerr << "Error: colors-to-retain must be a positive integer." << endl;
+        ret = false;
+    }
+    ***/
     return ret;
 }
 
@@ -535,6 +581,22 @@ bool CheckOptionsRefineUnitigs(ProgramOptions& opt) {
         ret = false;
     }
 
+    if (opt.min_colors <= 0) {
+        cerr << "Error: min-colors must be a positive integer." << endl;
+        ret = false;
+    }
+
+    if (opt.max_colors <= 0) {
+        cerr << "Error: max-colors must be a positive integer." << endl;
+        ret = false;
+    }
+
+    /***
+    if (opt.colors_to_retain.all > 0) {
+        cerr << "Error: colors-to-retain must be a positive integer." << endl;
+        ret = false;
+    }
+    ***/
     return ret;
 }
 
@@ -613,6 +675,23 @@ bool CheckOptionsRefine(ProgramOptions& opt) {
         cerr << "Error: invalid range supplied" << endl;
         ret = false;
     }
+
+    if (opt.min_colors <= 0) {
+        cerr << "Error: min-colors must be a positive integer." << endl;
+        ret = false;
+    }
+
+    if (opt.max_colors <= 0) {
+        cerr << "Error: max-colors must be a positive integer." << endl;
+        ret = false;
+    }
+
+    /***
+    if (opt.colors_to_retain.all > 0) {
+        cerr << "Error: colors-to-retain must be a positive integer." << endl;
+        ret = false;
+    }
+    ***/
 
     return ret;
 }
