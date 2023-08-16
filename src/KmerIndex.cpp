@@ -74,8 +74,8 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
   int l = 0;
   num_trans = 0;
   size_t range_discard = 0;
-  int min_color_num = 2;  // specify contig extraction
-  int max_color_num = 8; // specify contig extraction
+  int min_color_num = 2; // get rid of this
+  int max_color_num = 8; // get rid of this
   uint32_t rb = std::max(opt.distinguish_range_begin,0); // range begin filter
   uint32_t re = opt.distinguish_range_end == 0 ? rb : std::max(opt.distinguish_range_end,0); // range end filter
   if (rb == 0 && re == 0) re = std::numeric_limits<uint32_t>::max();
@@ -114,8 +114,9 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
       if (str.length() < k) {
         continue;
       }
-      // num_trans = current number of extracted contigs
-      // Check if the current number of contigs has reached the minimum desired number
+      // num_trans = current number of extracted sequences from FASTA input
+      // don't need this 
+      /***
       if (min_color_num > 0 && num_trans < min_color_num) { // specify contig extraction
           continue;
       }
@@ -123,6 +124,7 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
       if (max_color_num > 0 && num_trans >= max_color_num) { // specify contig extraction
           break;
       }
+      ***/
       if (str.length() >= rb && str.length() <= re) {
         *(ofs[color]) << ">" << std::to_string(color) << "\n" << str << "\n";
         num_trans++;
@@ -136,9 +138,11 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
   }
 
   // this works, is it necessary? have if(){} above
+  /***
   if (max_color_num > 0 && num_trans >= max_color_num) { // specify contig extraction
       return;
   }
+  ***/
 
   for (auto& of : ofs) (*of).close(); // Close files now that we've outputted everything
   for (auto& of : ofs) delete of; // Free pointer memory
@@ -149,7 +153,7 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
 }
 
 
-// TODO extend color selection functionality
+// TODO extend color selection functionality in main ProgramOptions
 // TODO 
 void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::vector<std::string>& transfasta, bool reconstruct) {
   k = opt.k;
@@ -341,11 +345,16 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   int range_discard = 0;
   int num_written = 0;
 
+
   // TESTING only, add opt.min_color_num to ProgramOptins
-  int min_color_num = 2;  // specify contig extraction
-  int max_color_num = 8; // specify contig extraction
-  std::unordered_set<int> colors_to_retain = { 2 , 4 }; // TESTING only, add colors_to_retain to ProgramOptions
+  int min_color_num = 2;
+  int max_color_num = 8;
+  // std::unordered_set<int> colors_to_retain; // TESTING only, add colors_to_retain to ProgramOptions
   
+  // sequences derived from different tissue samples are assigned different colors
+  // i.e. AGT from sample 1 and sample 2 will have different colors
+  // how does user specify which colors to retain ?
+
   /***
   int min_color_num = opt.min_color_num; // Minimum number of colors
   int max_color_num = opt.max_color_num; // Maximum number of colors
@@ -377,6 +386,24 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
               }
               std::set<int> positions_to_remove;
               
+              // try this out
+              // generate set of ALL colors
+              std::unordered_set<int> unique_colors;
+              for (const auto& k_elem : k_map) {
+                  auto color = k_elem.first;
+                  unique_colors.insert(color);
+              }
+
+              bool remove = true;
+              for (auto it = unique_colors.begin(); it != unique_colors.end();) {
+                  if (remove) {
+                      it = unique_colors.erase(it);
+                  }
+                  else {
+                      ++it;
+                  }
+              }
+
               // Check if the color should be retained
               for (const auto& k_elem : k_map) {
                   int curr_pos = -1;
@@ -392,7 +419,8 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                   ***/
                   // retain color based on specified set of colors
                   // if current color IS IN (>0) colors_to_retain, and maps to min/max number of colors
-                  if (colors_to_retain.count(color) > 0 && k_map.size() >= min_color_num && k_map.size() <= max_color_num) {
+                  if (unique_colors.count(color) > 0 && k_map.size() >= min_color_num && k_map.size() <= max_color_num) {
+                  // if (colors_to_retain.count(color) > 0 && k_map.size() >= min_color_num && k_map.size() <= max_color_num) {
                       continue;
                   }
                   if (!opt.distinguish_all_but_one_color && !opt.distinguish_union) {
