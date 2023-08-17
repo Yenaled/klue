@@ -154,8 +154,8 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
 }
 
 
-// TODO extend color selection functionality in main ProgramOptions
-// TODO 
+// TODO extend color selection functionality (colors_to_retain ex: colors 3&4 XOR 2)
+// TODO parsing in terminal
 void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::vector<std::string>& transfasta, bool reconstruct) {
   k = opt.k;
   std::cerr << "[build] k-mer length: " << k << std::endl;
@@ -346,18 +346,11 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   int num_written = 0;
 
   // DEBUG:
-  int min_color_num = 2;
-  int max_color_num = 8;
-  // int min_color_num = opt.min_colors;
-  // int max_color_num = opt.max_colors;
+  int min_color_num = opt.min_colors; // minimum number of colors 
+  int max_color_num = opt.max_colors;
   // how does user specify which colors to retain ?
-
-  // add to ProgramOptions
-  /***
-  int min_color_num = opt.minColorNum; // Minimum number of colors
-  int max_color_num = opt.maxColorNum; // Maximum number of colors
-  std::unordered_set<int> colors_to_retain = opt.colorsToRetain;
-  ***/
+  // std::set<int> colors_to_retain = opt.colors_to_retain;
+  
   // TODO: Reconstruct below
   for (const auto& unitig : ccdbg) {
     const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
@@ -387,7 +380,11 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
               
               // DEBUG:
               // generate set of ALL colors
-              std::unordered_set<int> unique_colors;
+              // k_map.first   type(int)            represents colors (distinct sequences)
+              // k_map.second  type(std::set<int>)  contains positions of k-mers belonging to that color w/in specific unitig
+              // k_elem.first  type(const int)      represents color of the unitig (identifies color i.e. source of sequences)
+              // k_elem.second type(std::set<int>)  contains positions of k-mers belonging to that color w/in specific unitig
+              std::set<int> unique_colors;
               for (const auto& k_elem : k_map) {
                   auto color = k_elem.first;
                   unique_colors.insert(color);
@@ -421,8 +418,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                   // retain color based on specified set of colors
                   // if current color IS IN (>0) colors_to_retain, and maps to min/max number of colors
                   // DEBUG:
-                  if (unique_colors.count(color) > 0 && k_map.size() >= min_color_num && k_map.size() <= max_color_num) {
-                  // actual: 
+                  if (unique_colors.count(color) > 0 && k_map.size() >= min_color_num && k_map.size() <= max_color_num) { 
                   // if (colors_to_retain.count(color) > 0 && k_map.size() >= min_color_num && k_map.size() <= max_color_num) {
                       continue;
                   }
