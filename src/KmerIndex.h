@@ -23,6 +23,7 @@ struct KmerIndex {
 
   void BuildDistinguishingGraph(const ProgramOptions& opt, const std::vector<std::string>& transfasta, bool reconstruct=false);
   void BuildReconstructionGraph(const ProgramOptions& opt);
+  void CharacterizeVariation(const ProgramOptions& opt, const std::vector<std::string>& transfasta, const std::vector<std::string>& tmp_files, const std::vector<int>& color_map);
   int k; // k-mer size used
   int num_trans; // number of targets
 };

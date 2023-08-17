@@ -10,7 +10,10 @@
 #include <unordered_map>
 #include <string>
 #include "ColoredCDBG.hpp"
-
+#include <set>
+#include <vector>
+#include <fstream>
+#include <map>
 
 // other helper functions
 // pre: u is sorted
@@ -346,9 +349,9 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   int num_written = 0;
 
   // DEBUG:
-  int min_color_num = opt.min_colors; // minimum number of colors 
-  int max_color_num = opt.max_colors;
-  // how does user specify which colors to retain ?
+  int min_color_num = opt.min_colors; // lower bound on color count w/in unitig
+  int max_color_num = opt.max_colors; // upper bound on color count w/in unitig
+  // how does user specify which colors to retain (ex: -R 3,4 && 5 || 6 )?
   // std::set<int> colors_to_retain = opt.colors_to_retain;
   
   // TODO: Reconstruct below
@@ -394,7 +397,10 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
               // DEBUG:
               // generate three sets
               std::set<int> set1, set2, set3;
-              std::set<std::set<int>> colors_to_retain;
+
+              
+              // ADD yes or no: std::set<std::set<int>> colors_to_exclude;
+              std::set<std::set<int>> colors_to_retain; // default : colors_to_retain = ALL
 
               // iterate through unique_colors and distribute colors into the three sets
               int pos = 0;
@@ -432,16 +438,11 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                   std::string colored_contig = "";
                   auto color = k_elem.first;
 
-                  // TESTING only, add opt.colorsToRetain to ProgramOptions
-                  // add to Program options
-                  /***
-                  if (opt.distinguish_all_but_N_colors && opt.colors_to_retain.count(color) == 0){
-                    continue;
-                  }
-                  ***/
                   // retain color based on specified set of colors
                   // if current color IS IN (>0) colors_to_retain, and maps to min/max number of colors
                   // DEBUG:
+                  // If the number of unique colors in a unitig falls within [min, max], the unitig is processed
+                  // i.e. to find k-mers in 3,4,5 colors, etc.
                   if (k_map.size() >= min_color_num && k_map.size() <= max_color_num &&
                       std::any_of(colors_to_retain.begin(), colors_to_retain.end(),
                           [color](const std::set<int>& subSet) { return subSet.count(color) > 0; })) {
@@ -538,4 +539,51 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
     if (range_discard > 0) std::cerr << "[build] Number of output sequences filtered out due to length: " << range_discard << std::endl;
     std::cerr << "[build] Number of output sequences written: " << num_written << std::endl;
   }
+}
+
+void KmerIndex::CharacterizeVariation(const ProgramOptions& opt, const std::vector<std::string>& transfasta, const std::vector<std::string>& tmp_files, const std::vector<int>& color_map) {
+    // Process each unitig
+    for (size_t i = 0; i < tmp_files.size(); i++) {
+        const std::string& tmp_file = tmp_files[i];
+        const std::string& fasta_file = transfasta[i];
+        int color = color_map[i];
+
+        std::ifstream fasta_stream(tmp_file);
+        std::string line;
+        std::string sequence;
+        bool read_sequence = false;
+
+        while (std::getline(fasta_stream, line)) {
+            if (line.empty()) {
+                continue;
+            }
+
+            if (line[0] == '>') {
+                if (!sequence.empty()) {
+                    // process extracted unitigs
+                    // analyze and characterize the variation
+                    // new splice junction
+                    // SNP
+                    // indel
+                    // CNV
+                    // chromosomal/structural rearrangments
+
+                    // analysis:
+                    // align to reference,
+                    // ID genomic coords corresponding to extracted unitig
+                    // see other databases
+                }
+                read_sequence = true;
+            }
+            else if (read_sequence) {
+                sequence += line;
+            }
+        }
+
+        if (!sequence.empty()) {
+            // process last sequence in the file
+        }
+
+        fasta_stream.close();
+    }
 }
