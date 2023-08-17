@@ -384,6 +384,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
               // k_map.second  type(std::set<int>)  contains positions of k-mers belonging to that color w/in specific unitig
               // k_elem.first  type(const int)      represents color of the unitig (identifies color i.e. source of sequences)
               // k_elem.second type(std::set<int>)  contains positions of k-mers belonging to that color w/in specific unitig
+             
               std::set<int> unique_colors;
               for (const auto& k_elem : k_map) {
                   auto color = k_elem.first;
@@ -391,6 +392,29 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
               }
 
               // DEBUG:
+              // generate three sets
+              std::set<int> set1, set2, set3;
+              std::set<std::set<int>> colors_to_retain;
+
+              // iterate through unique_colors and distribute colors into the three sets
+              int pos = 0;
+              for (int color : unique_colors) {
+                  if (pos % 3 == 0) {
+                      set1.insert(color);
+                  }
+                  else if (pos % 3 == 1) {
+                      set2.insert(color);
+                  }
+                  else {
+                      set3.insert(color);
+                  }
+                  pos++;
+              }
+              // insert the nested sets into colors_to_retain
+              colors_to_retain.insert(set1);
+              colors_to_retain.insert(set2);
+              colors_to_retain.insert(set3);
+              /***
               // remove every other color from generated set
               bool remove = true;
               for (auto it = unique_colors.begin(); it != unique_colors.end();) {
@@ -401,7 +425,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                       ++it;
                   }
               }
-
+              ***/
               // Check if the color should be retained
               for (const auto& k_elem : k_map) {
                   int curr_pos = -1;
@@ -418,43 +442,46 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                   // retain color based on specified set of colors
                   // if current color IS IN (>0) colors_to_retain, and maps to min/max number of colors
                   // DEBUG:
-                  if (unique_colors.count(color) > 0 && k_map.size() >= min_color_num && k_map.size() <= max_color_num) { 
-                  // if (colors_to_retain.count(color) > 0 && k_map.size() >= min_color_num && k_map.size() <= max_color_num) {
-                      continue;
-                  }
-                  if (!opt.distinguish_all_but_one_color && !opt.distinguish_union) {
-                      int i_ = 0;
-                      for (const auto& k_elem : k_map) {
-                          int j_ = 0;
-                          for (const auto& k_elem2 : k_map) {
-                              if (j_ > i_ && k_elem.first != k_elem2.first) {
-                                  std::set<int> intersect;
-                                  std::set<int> set_result;
-                                  std::set_intersection(k_elem.second.begin(), k_elem.second.end(), k_elem2.second.begin(), k_elem2.second.end(), std::inserter(intersect, intersect.begin())); //if (k_elem2.second.count(k_elem1.second)) // check if set intersection with k_elem2
-                                  std::set_union(positions_to_remove.begin(), positions_to_remove.end(), intersect.begin(), intersect.end(), std::inserter(set_result, set_result.begin()));
-                                  positions_to_remove = std::move(set_result);
-                              }
-                              j_++;
-                          }
-                          i_++;
-                      }
-                  }
-                  else if (!opt.distinguish_union) {
-                      int i_ = 0;
-                      if (k_map.size() == tmp_files.size()) {
+                  if (k_map.size() >= min_color_num && k_map.size() <= max_color_num &&
+                      std::any_of(colors_to_retain.begin(), colors_to_retain.end(),
+                          [color](const std::set<int>& subSet) { return subSet.count(color) > 0; })) {
+                  //if (unique_colors.count(color) > 0 && k_map.size() >= min_color_num && k_map.size() <= max_color_num) {
+                  //if (colors_to_retain.count(color) > 0 && k_map.size() >= min_color_num && k_map.size() <= max_color_num) {
+                      if (!opt.distinguish_all_but_one_color && !opt.distinguish_union) {
+                          int i_ = 0;
                           for (const auto& k_elem : k_map) {
-                              i_++;
-                              if (positions_to_remove.size() == 0) {
-                                  positions_to_remove = k_elem.second;
+                              int j_ = 0;
+                              for (const auto& k_elem2 : k_map) {
+                                  if (j_ > i_ && k_elem.first != k_elem2.first) {
+                                      std::set<int> intersect;
+                                      std::set<int> set_result;
+                                      std::set_intersection(k_elem.second.begin(), k_elem.second.end(), k_elem2.second.begin(), k_elem2.second.end(), std::inserter(intersect, intersect.begin())); //if (k_elem2.second.count(k_elem1.second)) // check if set intersection with k_elem2
+                                      std::set_union(positions_to_remove.begin(), positions_to_remove.end(), intersect.begin(), intersect.end(), std::inserter(set_result, set_result.begin()));
+                                      positions_to_remove = std::move(set_result);
+                                  }
+                                  j_++;
                               }
-                              else {
-                                  std::set<int> set_result;
-                                  std::set_intersection(positions_to_remove.begin(), positions_to_remove.end(), k_elem.second.begin(), k_elem.second.end(), std::inserter(set_result, set_result.begin()));
-                                  positions_to_remove = std::move(set_result);
+                              i_++;
+                          }
+                      }
+                      else if (!opt.distinguish_union) {
+                          int i_ = 0;
+                          if (k_map.size() == tmp_files.size()) {
+                              for (const auto& k_elem : k_map) {
+                                  i_++;
+                                  if (positions_to_remove.size() == 0) {
+                                      positions_to_remove = k_elem.second;
+                                  }
+                                  else {
+                                      std::set<int> set_result;
+                                      std::set_intersection(positions_to_remove.begin(), positions_to_remove.end(), k_elem.second.begin(), k_elem.second.end(), std::inserter(set_result, set_result.begin()));
+                                      positions_to_remove = std::move(set_result);
+                                  }
                               }
                           }
                       }
                   }
+                  else { continue; }
               }              
               for (const auto& k_elem : k_map) {
                 int curr_pos = -1;
@@ -512,4 +539,3 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
     std::cerr << "[build] Number of output sequences written: " << num_written << std::endl;
   }
 }
-
