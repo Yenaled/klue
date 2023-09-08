@@ -219,7 +219,7 @@ void generateCombinations(const std::vector<int>& elements,
 }
 
 // convert a vector of integers to a string
-std::string to_string(const std::vector<int>& vec) {
+std::string to_string(std::vector<int>& vec) {
     std::ostringstream oss;
     for (size_t i = 0; i < vec.size(); ++i) {
         oss << vec[i];
