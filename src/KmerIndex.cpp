@@ -516,7 +516,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                 int curr_pos = -1;
                 std::string colored_contig = "";
                 auto color = k_elem.first;
-                if (test_distinguish_combinations) { positions_to_remove = positions_to_remove_map[color]; }
+                //if (test_distinguish_combinations) { positions_to_remove = positions_to_remove_map[color]; }
                 //std::string contig_metadata = " :" + unitig.dist + "," + unitig.len + "," + unitig.size + "," + unitig.strand;
                 for (const auto &pos : k_elem.second) {
                   if (!positions_to_remove.count(pos)) {
