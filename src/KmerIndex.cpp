@@ -524,7 +524,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                     } else if (pos == curr_pos+1) {
                       colored_contig += km[km.length()-1];
                     } else {
-                      if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << std::to_string(color) << "\n" << colored_contig << "\n"; _num_written++; }
+                      if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << to_string(color) << "\n" << colored_contig << "\n"; _num_written++; }
                       else _range_discard++;
                       colored_contig = km;
                     }
@@ -532,7 +532,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                   }
                 }
                 if (colored_contig != "") {
-                  if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << std::to_string(color) << "\n" << colored_contig << "\n"; _num_written++; }
+                  if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << to_string(color) << "\n" << colored_contig << "\n"; _num_written++; }
                   else _range_discard++;
                 }
               }
