@@ -11,15 +11,6 @@
 #include <string>
 #include "ColoredCDBG.hpp"
 
-/*
-#include <set>
-#include <map>
-#include <vector>
-#include <thread>
-#include <mutex>
-*/
-
-
 // other helper functions
 // pre: u is sorted
 bool isUnique(const std::vector<int>& u) {
@@ -502,7 +493,6 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                       thread.join();
                   }
               }
-              /*
               // k_map modification
               for (const auto& entry : k_map) {
                   std::vector<int> key_vector = { entry.first };
@@ -510,9 +500,8 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
               }
               k_map.clear();
               k_map.~map();
-              */
               if (test_distinguish_combinations) { new_k_map = aggregated_positions; }
-              for (const auto& k_elem : k_map) {
+              for (const auto& k_elem : new_k_map) {
                 int curr_pos = -1;
                 std::string colored_contig = "";
                 auto color = k_elem.first;
@@ -526,7 +515,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                     } else if (pos == curr_pos+1) {
                       colored_contig += km[km.length()-1];
                     } else {
-                      if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << std::to_string(color) << "\n" << colored_contig << "\n"; _num_written++; }
+                      if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << to_string(color) << "\n" << colored_contig << "\n"; _num_written++; }
                       else _range_discard++;
                       colored_contig = km;
                     }
@@ -534,7 +523,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                   }
                 }
                 if (colored_contig != "") {
-                  if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << std::to_string(color) << "\n" << colored_contig << "\n"; _num_written++; }
+                  if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << to_string(color) << "\n" << colored_contig << "\n"; _num_written++; }
                   else _range_discard++;
                 }
               }
