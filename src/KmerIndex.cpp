@@ -225,7 +225,7 @@ struct Node {
     bool visited = false;
 };
 
-std::unordered_map<std::string, Node> populateGraph2(std::map<int, std::vector<int>> k_map, auto unitig) {
+std::unordered_map<std::string, Node> populateGraph2(std::map<int, std::set<int>> k_map, auto unitig) {
     std::unordered_map<std::string, Node> graph2;
 
     for (const auto& entry : k_map) {
