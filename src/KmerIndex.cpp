@@ -225,20 +225,19 @@ struct Node {
     bool visited = false;
 };
 
-std::unordered_map<std::string, Node> populateGraph2(const std::map<int, std::vector<int>>& k_map, auto unitig) {
+std::unordered_map<std::string, Node> populateGraph2(std::map<int, std::vector<int>>& k_map, auto unitig) {
     std::unordered_map<std::string, Node> graph2;
 
     for (const auto& entry : k_map) {
         int color = entry.first;
         const std::vector<int>& positions = entry.second;
-        for (const auto& p : positions) {
-            int pos = p;
+        for (const auto& pos : positions) {
             const std::string& kmer = unitig.getUnitigKmer(pos).toString(); // pass unitig?
             if (graph2.find(kmer) == graph2.end()) {
                 graph2[kmer] = Node();
             }
             Node& currentNode = graph2[kmer];
-            currentNode.sample_positions[color].insert(position);
+            currentNode.sample_positions[color].insert(pos);
         }
     }
     return graph2;
