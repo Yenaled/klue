@@ -134,7 +134,6 @@ struct SharedPositionInfo {
 };
 
 std::mutex mtx;
-bool test_distinguish_combinations = false; /* DEBUG: change to ProgramOptions */
 
 void findSharedPositions(const std::vector<int>& colors,
     const std::map<int, std::set<int>>& k_map,
@@ -437,7 +436,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
               std::map<std::vector<int>, std::set<int>> positions_to_remove_map;
               std::map<std::vector<int>, std::set<int>> aggregated_positions;
               std::map<std::vector<int>, std::set<int>> new_k_map;
-              if (!opt.distinguish_all_but_one_color && !opt.distinguish_union && !test_distinguish_combinations) {
+              if (!opt.distinguish_all_but_one_color && !opt.distinguish_union && !opt.distinguish_combinations) {
                 int i_ = 0;
                 for (const auto& k_elem : k_map) {
                   int j_ = 0;
@@ -468,7 +467,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                   }
                 }
               }
-              else if (test_distinguish_combinations) {
+              else if (opt.distinguish_combinations) {
                   int i_ = 0;
                   std::vector<std::vector<int>> allCombinations;
                   std::vector<int> elements;
@@ -499,12 +498,12 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                   new_k_map[key_vector] = entry.second;
               }
               k_map.clear();
-              if (test_distinguish_combinations) { new_k_map = aggregated_positions; }
+              if (opt.distinguish_combinations) { new_k_map = aggregated_positions; }
               for (const auto& k_elem : new_k_map) {
                 int curr_pos = -1;
                 std::string colored_contig = "";
                 auto color = k_elem.first;
-                if (test_distinguish_combinations) { positions_to_remove = positions_to_remove_map[color]; }
+                if (opt.distinguish_combinations) { positions_to_remove = positions_to_remove_map[color]; }
                 //std::string contig_metadata = " :" + unitig.dist + "," + unitig.len + "," + unitig.size + "," + unitig.strand;
                 for (const auto &pos : k_elem.second) {
                   if (!positions_to_remove.count(pos)) {
