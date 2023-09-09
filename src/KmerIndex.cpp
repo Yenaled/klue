@@ -228,7 +228,7 @@ struct Node {
 std::unordered_map<std::string, Node> populateGraph2(std::map<int, std::set<int>> k_map, auto unitig) {
     std::unordered_map<std::string, Node> graph2;
 
-    for (const auto& entry : k_map) {
+    for (auto& entry : k_map) {
         int color = entry.first;
         std::set<int>& positions = entry.second;
         for (const auto& pos : positions) {
