@@ -587,7 +587,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
               for (int color = 0; color < tmp_files.size(); ++color) { // dont use sequences
                   //oss << ">" << color << "\n";
                   int assembled_length = 0;
-                  while (assembled_length < MAX_LENGTH) { // come up with other break condition
+                  while (assembled_length < 31) { // come up with other break condition
                       std::string km = unitig.getUnitigKmer(assembled_length).toString();
                       std::string startKmer = km.substr(assembled_length, k);
                       int startPosition = assembled_length;
