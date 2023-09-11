@@ -18,6 +18,7 @@ CTestTestfile.cmake
 debug/
 release/
 .vscode/
+.vs/
 ext/htslib/src/htslib-stamp
 ext/htslib/tmp/
 ext/bifrost/tmp/
