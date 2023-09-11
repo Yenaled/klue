@@ -62,12 +62,14 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
   int pipe_flag = 0;
   int distinguish_all_flag = 0;
   int distinguish_all_but_one_flag = 0;
+  int distinguish_combinations_flag = 0;
   const char *opt_string = "o:k:m:t:r:M:g:p";
   static struct option long_options[] = {
     // long args
     {"verbose", no_argument, &verbose_flag, 1},
     {"all", no_argument, &distinguish_all_flag, 1},
     {"all-but-one", no_argument, &distinguish_all_but_one_flag, 1},
+    {"combinations", no_argument, &distinguish_combinations_flag, 1},
     // short args
     {"output", required_argument, 0, 'o'},
     {"pipe", no_argument, &pipe_flag, 'p'},
@@ -159,6 +161,9 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
   }
   if (distinguish_all_but_one_flag) {
     opt.distinguish_all_but_one_color = true;
+  }
+  if (distinguish_combinations_flag) {
+    opt.distinguish_combinations = true;
   }
 
   for (int i = optind; i < argc; i++) {
