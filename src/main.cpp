@@ -648,6 +648,7 @@ void usageDistinguish() {
        << "                            Can specify multiple numbers (one for each input file)" << endl
        << "    --all                   Set the mode to be extracting sequences found in any input" << endl
        << "    --all-but-one           Set the mode to be extracting all sequences except those found across all inputs" << endl
+       << "    --combinations          Set the mode to be listing every combination of sets" << endl
        << "-g, --map-file=STRING       Filename for mapping output FASTA headers to file names" << endl
        << "-t, --threads=INT           Number of threads to use (default: 1)" << endl
        << "-m, --min-size=INT          Length of minimizers (default: automatically chosen)" << endl
