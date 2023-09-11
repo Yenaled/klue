@@ -34,35 +34,37 @@ typedef unsigned int uint;
 #endif
 
 struct ProgramOptions {
-  bool verbose;
-  int threads;
-  std::string distinguish_output_fasta;
-  std::string input_fasta_contig;
-  std::string map_file;
-  int k;
-  int g;
-  int min_found_colors;
-  bool stream_out;
-  bool distinguish_all_but_one_color;
-  bool distinguish_union;
-  int distinguish_range_begin;
-  int distinguish_range_end;
-  std::vector<int> kmer_multiplicity;
-  std::vector<int> inner;
-  std::vector<std::string> transfasta;
+	bool verbose;
+	int threads;
+	std::string distinguish_output_fasta;
+	std::string input_fasta_contig;
+	std::string map_file;
+	int k;
+	int g;
+	int min_found_colors;
+	bool stream_out;
+	bool distinguish_all_but_one_color;
+	bool distinguish_union;
+	bool distinguish_combinations;
+	int distinguish_range_begin;
+	int distinguish_range_end;
+	std::vector<int> kmer_multiplicity;
+	std::vector<int> inner;
+	std::vector<std::string> transfasta;
 
-ProgramOptions() :
-  verbose(false),
-  threads(1),
-  k(31),
-  g(0),
-  stream_out(false),
-  distinguish_all_but_one_color(false),
-  distinguish_union(false),
-  distinguish_range_begin(0),
-  distinguish_range_end(0),
-  min_found_colors(-1)
-  {}
+	ProgramOptions() :
+		verbose(false),
+		threads(1),
+		k(31),
+		g(0),
+		stream_out(false),
+		distinguish_all_but_one_color(false),
+		distinguish_union(false),
+		distinguish_combinations(false),
+		distinguish_range_begin(0),
+		distinguish_range_end(0),
+		min_found_colors(-1)
+	{}
 };
 
 std::string pretty_num(size_t num);
@@ -80,7 +82,7 @@ std::string pretty_num(int num);
 #define KSEQ_INIT_READY
 KSEQ_INIT(gzFile, gzread)
 #endif
-  
+
 extern std::string revcomp(const std::string& s);
 
 
