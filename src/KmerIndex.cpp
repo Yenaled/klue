@@ -529,7 +529,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                       }
                       for (int i = 1; i <= elements.size(); ++i) {
                           std::vector<int> currentCombination;
-                          generateCombinations(elements, 0, i), currentCombination, allCombinations);
+                          generateCombinations(elements, 0, i, currentCombination, allCombinations);
                       }
                       std::map<std::vector<int>, SharedPositionInfo> shared_positions;
                   }
