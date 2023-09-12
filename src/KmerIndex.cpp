@@ -219,61 +219,6 @@ std::string to_string(std::vector<int>& vec) {
     return oss.str();
 }
 
-// for traversal
-struct Node {
-    std::map<int, std::set<int>> sample_positions;
-    bool visited = false;
-};
-
-std::unordered_map<std::string, Node> populateGraph2(std::map<int, std::set<int>> k_map, auto unitig) {
-    std::unordered_map<std::string, Node> graph2;
-
-    for (auto& entry : k_map) {
-        int color = entry.first;
-        std::set<int>& positions = entry.second;
-        for (const auto& pos : positions) {
-            const std::string& kmer = unitig.getUnitigKmer(pos).toString(); // pass unitig?
-            if (graph2.find(kmer) == graph2.end()) {
-                graph2[kmer] = Node();
-            }
-            Node& currentNode = graph2[kmer];
-            currentNode.sample_positions[color].insert(pos);
-        }
-    }
-    return graph2;
-}
-
-std::string assembleContigs(std::unordered_map<std::string, Node>& graph, const std::string& currentKmer, int color, int currentPosition, bool isStartKmer, const int k) {
-    Node& currentNode = graph[currentKmer];
-    currentNode.visited = true;
-
-    std::string assembledSequence = currentKmer.substr(k - 1, 1);
-    for (char nextChar : "ACGT") {
-        std::string neighborNode = currentKmer.substr(1, k - 1) + nextChar;
-        if (graph.find(neighborNode) != graph.end()) {
-            Node& nextNode = graph[neighborNode];
-            auto nextPositionIter = nextNode.sample_positions.find(color);
-            if (nextPositionIter != nextNode.sample_positions.end()) {
-                if (!nextPositionIter->second.empty()) {
-                    int nextPosition = *nextPositionIter->second.begin();
-                    if (!nextNode.visited && nextPosition == currentPosition + 1) {
-                        std::string subSequence = assembleContigs(graph, neighborNode, color, nextPosition, false, k);
-                        assembledSequence += subSequence;
-                        nextPositionIter->second.erase(nextPositionIter->second.begin());
-                    }
-                }
-            }
-        }
-    }
-    if (isStartKmer) {
-        std::string startKmer = currentKmer.substr(0, k - 1);
-        assembledSequence = startKmer + assembledSequence;
-    }
-    currentNode.visited = false;
-    return assembledSequence;
-}
-
-
 void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::vector<std::string>& transfasta, bool reconstruct) {
   k = opt.k;
   std::cerr << "[build] k-mer length: " << k << std::endl;
@@ -567,19 +512,6 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                 }
               }
               // traversal here
-              std::unordered_map<std::string, Node> graph2 = populateGraph2(k_map, unitig);
-              for (int color = 0; color < tmp_files.size(); ++color) { // dont use sequences
-                  //oss << ">" << color << "\n";
-                  int assembled_length = 0;
-                  while (assembled_length < 31) { // come up with other break condition
-                      std::string km = unitig.getUnitigKmer(assembled_length).toString();
-                      std::string startKmer = km.substr(assembled_length, k);
-                      int startPosition = assembled_length;
-                      std::string assembledSequence = assembleContigs(graph2, startKmer, color, startPosition, true, k);
-                      assembled_length += assembledSequence.length();
-                      //oss << assembledSequence << "\n";
-                  }
-              }
               // end traversal
             }
             std::unique_lock<std::mutex> lock(mutex_unitigs);
