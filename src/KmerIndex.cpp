@@ -507,7 +507,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                           i_++;
                       }
                   }
-                  else if (opt.distinguish_all_but_one_color) {
+                  else if (!opt.distinguish_combinations) { // enter opt.distinguish_all_but_one_color
                       if (k_map.size() == tmp_files.size()) {
                           for (const auto& k_elem : k_map) {
                               if (positions_to_remove.size() == 0) {
@@ -521,7 +521,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                           }
                       }
                   }
-                  else if (opt.distinguish_combinations) {
+                  else if (!opt.distinguish_all_but_one_color) { // enter opt.distinguish_combinations
                       std::vector<std::vector<int>> allCombinations;
                       std::vector<int> elements;
                       for (const auto& k_elem : k_map) {
