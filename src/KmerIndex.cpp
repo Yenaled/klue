@@ -219,6 +219,65 @@ std::string to_string(std::vector<int>& vec) {
     return oss.str();
 }
 
+struct Node {
+    std::map<int, std::set<int>> sample_positions; // k_map
+    bool visited = false;
+};
+
+std::unordered_map<int, int> calculateMaxPositions(const std::unordered_map<std::string, Node>& traverse_map, const std::vector<int> color_map) {
+    std::unordered_map<int, int> maxPositions;
+
+    for (int color = 0; color < color_map.size(); ++color) {
+        maxPositions[color] = -1;
+
+        for (const auto& entry : traverse_map) {
+            const Node& node = entry.second;
+
+            if (node.sample_positions.find(color) != node.sample_positions.end()) {
+                const std::set<int>& positions = node.sample_positions.at(color);
+                for (int position : positions) {
+                    if (position > maxPositions[color]) {
+                        maxPositions[color] = position;
+                    }
+                }
+            }
+        }
+    }
+
+    return maxPositions;
+}
+
+std::string assembleContigs(std::unordered_map<std::string, Node>& graph, const std::string& currentKmer, int color, int currentPosition, bool isStartKmer, const int k) {
+    // construct traverse_map as std::unordered_map<std::string k-mer string, k_map>
+    Node& currentNode = graph[currentKmer];
+    currentNode.visited = true;
+
+    std::string assembledSequence = currentKmer.substr(k - 1, 1);
+    for (char nextChar : "ACGT") {
+        std::string neighborNode = currentKmer.substr(1, k - 1) + nextChar;
+        if (graph.find(neighborNode) != graph.end()) {
+            Node& nextNode = graph[neighborNode];
+            auto nextPositionIter = nextNode.sample_positions.find(color);
+            if (nextPositionIter != nextNode.sample_positions.end()) {
+                if (!nextPositionIter->second.empty()) {
+                    int nextPosition = *nextPositionIter->second.begin();
+                    if (!nextNode.visited && nextPosition == currentPosition + 1) {
+                        std::string subSequence = assembleContigs(graph, neighborNode, color, nextPosition, false, k);
+                        assembledSequence += subSequence;
+                        nextPositionIter->second.erase(nextPositionIter->second.begin());
+                    }
+                }
+            }
+        }
+    }
+    if (isStartKmer) {
+        std::string startKmer = currentKmer.substr(0, k - 1);
+        assembledSequence = startKmer + assembledSequence;
+    }
+    currentNode.visited = false;
+    return assembledSequence;
+}
+
 void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::vector<std::string>& transfasta, bool reconstruct) {
   k = opt.k;
   std::cerr << "[build] k-mer length: " << k << std::endl;
@@ -433,7 +492,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
               std::set<int> positions_to_remove;
               std::map<std::vector<int>, std::set<int>> positions_to_remove_map;
               std::map<std::vector<int>, std::set<int>> aggregated_positions;
-              std::map<std::vector<int>, std::set<int>> new_k_map;
+              std::map<std::vector<int>, std::set<int>> k_map_vector;
               if (!opt.distinguish_union) {
                   if (!opt.distinguish_all_but_one_color && !opt.distinguish_combinations) {
                       int i_ = 0;
@@ -480,12 +539,12 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                   }
               }
               // k_map modification
-              for (const auto& entry : k_map) {
-                  std::vector<int> key_vector = { entry.first };
-                  new_k_map[key_vector] = entry.second;
+              for (const auto& k_elem : k_map) {
+                  std::vector<int> key_vector = { k_elem.first };
+                  k_map_vector[key_vector] = k_elem.second;
               }
-              if (opt.distinguish_combinations) { new_k_map = aggregated_positions; }
-              for (const auto& k_elem : new_k_map) {
+              if (opt.distinguish_combinations) { k_map_vector = aggregated_positions; }
+              for (const auto& k_elem : k_map_vector) {
                 int curr_pos = -1;
                 std::string colored_contig = "";
                 auto color = k_elem.first;
@@ -512,7 +571,33 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                 }
               }
               // traversal here
-              // end traversal
+              std::unordered_map<std::string, Node> traverse_map;
+              for (const auto& k_elem : k_map) {
+                  auto color = k_elem.first;
+                  for (const auto& pos : k_elem.second) {
+                      std::string key = unitig.getUnitigKmer(pos).toString(); // get the k-mer key based on current position
+                      auto it = traverse_map.find(key);
+                      if (it == traverse_map.end()) {  // if the k-mer key doesn't already exist in traverse_map, create new Node
+                          Node node;
+                          node.sample_positions[color] = { pos };
+                          traverse_map[key] = node;
+                      }
+                      else { it->second.sample_positions[color].insert(pos); }  // if the k-mer key exists, add the position to the existing Node
+                  }
+              }
+              std::unordered_map<int, int> maxPositions = calculateMaxPositions(traverse_map, color_map);
+              // assemble contiguous subsequences
+              for (int color = 0; color < color_map.size(); ++color){
+                  int assembled_length = 0;
+                  int maxPositionForSample = maxPositions[color];
+                  while (assembled_length < maxPositionForSample + k){
+                      int startPos = assembled_length;
+                      std::string startKmer = unitig.getUnitigKmer(startPos).toString(); // always start at position 0
+                      std::string assembledSequence = assembleContigs(traverse_map, startKmer, color, startPos, true, k);
+                      assembled_length += assembledSequence.length();
+                      // oss << ">" << color << "\n" << assembledSequence << "\n";
+                  }
+              }
             }
             std::unique_lock<std::mutex> lock(mutex_unitigs);
             o << oss.str();
