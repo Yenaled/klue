@@ -506,19 +506,18 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                   oss << "\n";
               }
               if (k_map.size() >= 2) {
-                  shared_sequence = true;
-                  // Iterate over k_map and build the vector and integer values
-                  for (const auto& kv : k_map) {
-                      std::vector<int> vector_key;
-                      int integer_value = 0; // Initialize the value to 0
+                  std::vector<int> consolidated_key;
 
-                      for (int key : kv.second) {
-                          vector_key.push_back(kv.first); // Add the key to the vector
-                      }
-
-                      // Insert the consolidated key and integer value into the result_map
-                      result_map[vector_key] = kv.second;
+                  // Iterate over k_map and build the consolidated key
+                  for (auto it = k_map.begin(); it != k_map.end(); ++it) {
+                      consolidated_key.push_back(it->first);
                   }
+
+                  // Get the integer value from the first set
+                  int integer_value = *(k_map.begin()->second.begin());
+
+                  // Insert the consolidated key and integer value into the result_map
+                  result_map[consolidated_key] = integer_value;
               }
 
               for (const auto& entry : result_map) {
