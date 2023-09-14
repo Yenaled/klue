@@ -517,13 +517,13 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
 
               // Print grouped_k_map
               for (const auto& entry : grouped_k_map) {
-                  oss << "K-mer: ";
+                  oss << "sample: ";
                   for (int sample : entry.first) {
                       oss << sample << " ";
                   }
                   oss << "maps to: ";
                   for (int sample : entry.second) {
-                      oss << sample << " ";
+                      oss << sample << " " << unitig.getUnitigKmer(sample).toString();
                   }
                   oss << "\n";
               }
