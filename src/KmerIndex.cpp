@@ -494,50 +494,38 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
               std::map<std::vector<int>, std::set<int>> aggregated_positions;
               std::map<std::vector<int>, std::set<int>> k_map_vector;
 
-              std::map<std::set<int>, std::vector<int>> grouped_k_map;
-
-              for (const auto& k_elem : k_map) {
-                  bool found = false;
-
-                  // Search in grouped_k_map for a matching set of integers
-                  for (auto& entry : grouped_k_map) {
-                      if (entry.first == k_elem.second) {
-                          entry.second.push_back(k_elem.first);
-                          found = true;
-                          break;
-                      }
-                  }
-
-                  // If not found, create a new entry in grouped_k_map
-                  if (!found) {
-                      std::vector<int> new_entry = { k_elem.first };
-                      grouped_k_map[k_elem.second] = new_entry;
-                  }
-              }
-
-              // Print grouped_k_map
-              for (const auto& entry : grouped_k_map) {
-                  oss << "sample: ";
-                  for (int sample : entry.first) {
-                      oss << sample << " ";
-                  }
-                  oss << "maps to: ";
-                  for (int sample : entry.second) {
-                      oss << sample << " " << unitig.getUnitigKmer(sample).toString();
-                  }
-                  oss << "\n";
-              }
-
+              std::map<std::vector<int>, int> result_map;
               // Print k_map
-              oss << "\nOriginal k_map:" << "\n";
+              bool shared_sequence = false;
+              oss << "\nk_map:" << "\n";
               for (const auto& k_elem : k_map) {
                   oss << k_elem.first << " ";
                   for (int val : k_elem.second) {
-                      oss << val << " ";
+                      oss << val << " " << unitig.getUnitigKmer(sample).toString();
                   }
                   oss << "\n";
               }
+              if (k_map.size() >= 2) {
+                  shared_sequence = true;
+                  // Iterate over k_map and build the vector and integer values
+                  for (auto it = k_map.begin(); it != k_map.end(); ++it) {
+                      std::vector<int> vector_key;
+                      int integer_value = *(it->second.begin()); // Get the first integer value
 
+                      vector_key.push_back(it->first); // Add the key from k_map to the vector
+
+                      // Insert the key and integer value into the result_map
+                      result_map[vector_key] = integer_value;
+                  }
+              }
+
+              for (const auto& entry : result_map) {
+                  oss << "key: ";
+                  for (int key : entry.first) {
+                      oss << key << "_";
+                  }
+                  oss << "\nvalue: " << entry.second << "\n";
+              }
 
               if (!opt.distinguish_union) {
                   if (!opt.distinguish_all_but_one_color && !opt.distinguish_combinations) {
