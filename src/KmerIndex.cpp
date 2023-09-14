@@ -129,155 +129,6 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
   BuildDistinguishingGraph(opt, tmp_files, true); // TODO: modify to handle temporary files
 }
 
-struct SharedPositionInfo {
-    std::set<int> positions;
-};
-
-// function to find common positions among a given set of colors
-void findSharedPositions(const std::vector<int>& colors,
-    const std::map<int, std::set<int>>& k_map,
-    std::map<std::vector<int>, SharedPositionInfo>& shared_positions,
-    std::map<std::vector<int>, std::set<int>>& positions_to_remove_map,
-    std::map<std::vector<int>, std::set<int>>& aggregated_positions) {
-
-    std::set<int> common_positions = k_map.at(colors[0]);
-
-    // calculate the intersection of positions for each color
-    for (size_t i = 1; i < colors.size(); ++i) {
-        std::set<int> temp;
-        std::set_intersection(common_positions.begin(), common_positions.end(),
-            k_map.at(colors[i]).begin(), k_map.at(colors[i]).end(),
-            std::inserter(temp, temp.begin()));
-        common_positions.swap(temp);
-    }
-
-    // if there are common positions, process them
-    if (!common_positions.empty()) {
-        for (auto& entry : shared_positions) {
-            const std::vector<int>& subset_colors = entry.first;
-            // check if the current combination is a subset of the given colors
-            if (subset_colors.size() <= colors.size() && std::includes(colors.begin(), colors.end(),
-                subset_colors.begin(), subset_colors.end())) {
-                SharedPositionInfo& info = entry.second;
-                std::set<int>& positions = info.positions;
-                std::set<int> excluded;
-                // remove common positions from the shared positions
-                for (int pos : common_positions) {
-                    if (positions.erase(pos)) {
-                        excluded.insert(pos);
-                    }
-                }
-                if (!excluded.empty()) {
-                    positions_to_remove_map[subset_colors].insert(excluded.begin(), excluded.end());
-                }
-            }
-        }
-        // update the shared positions with the common positions
-        SharedPositionInfo& info = shared_positions[colors];
-        std::set<int>& positions = info.positions;
-        std::set<int> unique_positions;
-        // find positions that are unique to the current combination
-        std::set_difference(common_positions.begin(), common_positions.end(),
-            positions.begin(), positions.end(),
-            std::inserter(unique_positions, unique_positions.begin()));
-        positions.insert(unique_positions.begin(), unique_positions.end());
-
-        if (!aggregated_positions.count(colors)) {
-            aggregated_positions[colors] = common_positions;
-        }
-    }
-}
-
-// function to generate all possible combinations of subsets of colors
-void generateCombinations(const std::vector<int>& elements,
-    int startIdx,
-    int remaining,
-    std::vector<int>& currentCombination,
-    std::vector<std::vector<int>>& allCombinations) {
-
-    if (remaining == 0) {
-        allCombinations.emplace_back(currentCombination);
-        return;
-    }
-
-    for (size_t i = startIdx; i <= elements.size() - remaining; ++i) {
-        currentCombination.push_back(elements[i]);
-        generateCombinations(elements, i + 1, remaining - 1, currentCombination, allCombinations);
-        currentCombination.pop_back();
-    }
-}
-
-// convert a vector of integers to a string
-std::string to_string(std::vector<int>& vec) {
-    std::ostringstream oss;
-    for (size_t i = 0; i < vec.size(); ++i) {
-        oss << vec[i];
-        if (i < vec.size() - 1) {
-            oss << "_";
-        }
-    }
-    return oss.str();
-}
-
-struct Node {
-    std::map<int, std::set<int>> sample_positions; // k_map
-    bool visited = false;
-};
-
-std::unordered_map<int, int> calculateMaxPositions(const std::unordered_map<std::string, Node>& traverse_map, const std::vector<int> color_map) {
-    std::unordered_map<int, int> maxPositions;
-
-    for (int color = 0; color < color_map.size(); ++color) {
-        maxPositions[color] = -1;
-
-        for (const auto& entry : traverse_map) {
-            const Node& node = entry.second;
-
-            if (node.sample_positions.find(color) != node.sample_positions.end()) {
-                const std::set<int>& positions = node.sample_positions.at(color);
-                for (int position : positions) {
-                    if (position > maxPositions[color]) {
-                        maxPositions[color] = position;
-                    }
-                }
-            }
-        }
-    }
-
-    return maxPositions;
-}
-
-std::string assembleContigs(std::unordered_map<std::string, Node>& graph, const std::string& currentKmer, int color, int currentPosition, bool isStartKmer, const int k) {
-    // construct traverse_map as std::unordered_map<std::string k-mer string, k_map>
-    Node& currentNode = graph[currentKmer];
-    currentNode.visited = true;
-
-    std::string assembledSequence = currentKmer.substr(k - 1, 1);
-    for (char nextChar : "ACGT") {
-        std::string neighborNode = currentKmer.substr(1, k - 1) + nextChar;
-        if (graph.find(neighborNode) != graph.end()) {
-            Node& nextNode = graph[neighborNode];
-            auto nextPositionIter = nextNode.sample_positions.find(color);
-            if (nextPositionIter != nextNode.sample_positions.end()) {
-                if (!nextPositionIter->second.empty()) {
-                    int nextPosition = *nextPositionIter->second.begin();
-                    if (!nextNode.visited && nextPosition == currentPosition + 1) {
-                        std::string subSequence = assembleContigs(graph, neighborNode, color, nextPosition, false, k);
-                        assembledSequence += subSequence;
-                        nextPositionIter->second.erase(nextPositionIter->second.begin());
-                    }
-                }
-            }
-        }
-    }
-    if (isStartKmer) {
-        std::string startKmer = currentKmer.substr(0, k - 1);
-        assembledSequence = startKmer + assembledSequence;
-    }
-    currentNode.visited = false;
-    return assembledSequence;
-}
-
 void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::vector<std::string>& transfasta, bool reconstruct) {
   k = opt.k;
   std::cerr << "[build] k-mer length: " << k << std::endl;
@@ -496,7 +347,6 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
 
               std::map<std::vector<int>, int> result_map;
               // Print k_map
-              bool shared_sequence = false;
               oss << "\nk_map:" << "\n";
               for (const auto& k_elem : k_map) {
                   oss << k_elem.first << " ";
@@ -520,12 +370,16 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                   result_map[consolidated_key] = integer_value;
               }
 
-              for (const auto& entry : result_map) {
-                  oss << "key: ";
-                  for (int key : entry.first) {
-                      oss << key << "_";
+              for (auto entry = result_map.begin(); entry != result_map.end(); ++entry) {
+                  oss << ">";
+                  for (auto key = entry->first.begin(); key != entry->first.end(); ++key) {
+                      oss << *key;
+                      if (std::next(key) != entry->first.end()) {
+                          oss << "_";
+                      }
                   }
-                  oss << "\nvalue: " << entry.second << "\n";
+                  auto pos = entry->second;
+                  oss << "\n : " << pos << unitig.getUnitigKmer(pos).toString() << "\n";
               }
 
               if (!opt.distinguish_union) {
@@ -560,26 +414,9 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                           }
                       }
                   }
-                  else if (!opt.distinguish_all_but_one_color) { // enter opt.distinguish_combinations
-                      std::vector<std::vector<int>> allCombinations;
-                      std::vector<int> elements;
-                      for (const auto& k_elem : k_map) {
-                          elements.push_back(k_elem.first);
-                      }
-                      for (int i = 1; i <= elements.size(); ++i) {
-                          std::vector<int> currentCombination;
-                          generateCombinations(elements, 0, i, currentCombination, allCombinations);
-                      }
-                      std::map<std::vector<int>, SharedPositionInfo> shared_positions;
-                  }
+                  else if (!opt.distinguish_all_but_one_color) { }
               }
-              // k_map modification
               for (const auto& k_elem : k_map) {
-                  std::vector<int> key_vector = { k_elem.first };
-                  k_map_vector[key_vector] = k_elem.second;
-              }
-              if (opt.distinguish_combinations) { k_map_vector = aggregated_positions; }
-              for (const auto& k_elem : k_map_vector) {
                 int curr_pos = -1;
                 std::string colored_contig = "";
                 auto color = k_elem.first;
@@ -604,34 +441,6 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                   if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << to_string(color) << "\n" << colored_contig << "\n"; _num_written++; }
                   else _range_discard++;
                 }
-              }
-              // traversal here
-              std::unordered_map<std::string, Node> traverse_map;
-              for (const auto& k_elem : k_map) {
-                  auto color = k_elem.first;
-                  for (const auto& pos : k_elem.second) {
-                      std::string key = unitig.getUnitigKmer(pos).toString(); // get the k-mer key based on current position
-                      auto it = traverse_map.find(key);
-                      if (it == traverse_map.end()) {  // if the k-mer key doesn't already exist in traverse_map, create new Node
-                          Node node;
-                          node.sample_positions[color] = { pos };
-                          traverse_map[key] = node;
-                      }
-                      else { it->second.sample_positions[color].insert(pos); }  // if the k-mer key exists, add the position to the existing Node
-                  }
-              }
-              std::unordered_map<int, int> maxPositions = calculateMaxPositions(traverse_map, color_map);
-              // assemble contiguous subsequences
-              for (int color = 0; color < color_map.size(); ++color){
-                  int assembled_length = 0;
-                  int maxPositionForSample = maxPositions[color];
-                  while (assembled_length < maxPositionForSample + k){
-                      int startPos = assembled_length;
-                      std::string startKmer = unitig.getUnitigKmer(startPos).toString(); // always start at position 0
-                      std::string assembledSequence = assembleContigs(traverse_map, startKmer, color, startPos, true, k);
-                      assembled_length += assembledSequence.length();
-                      // oss << ">" << color << "\n" << assembledSequence << "\n";
-                  }
               }
             }
             std::unique_lock<std::mutex> lock(mutex_unitigs);
