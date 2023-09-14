@@ -346,27 +346,12 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
               std::map<std::vector<int>, std::set<int>> k_map_vector;
 
               std::map<std::vector<int>, int> result_map;
-              // Print k_map
-              oss << "\nk_map:" << "\n";
-              for (const auto& k_elem : k_map) {
-                  oss << k_elem.first << " ";
-                  for (int val : k_elem.second) {
-                      oss << val << " " << unitig.getUnitigKmer(val).toString();
-                  }
-                  oss << "\n";
-              }
               if (k_map.size() >= 2) {
                   std::vector<int> consolidated_key;
 
                   // Iterate over k_map and build the consolidated key
-                  for (auto it = k_map.begin(); it != k_map.end(); ++it) {
-                      consolidated_key.push_back(it->first);
-                  }
-
-                  // Get the integer value from the first set
+                  for (auto it = k_map.begin(); it != k_map.end(); ++it) { consolidated_key.push_back(it->first); }
                   int integer_value = *(k_map.begin()->second.begin());
-
-                  // Insert the consolidated key and integer value into the result_map
                   result_map[consolidated_key] = integer_value;
               }
 
@@ -379,7 +364,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                       }
                   }
                   auto pos = entry->second;
-                  oss << "\n : " << pos << unitig.getUnitigKmer(pos).toString() << "\n";
+                  oss << "\n" << unitig.getUnitigKmer(pos).toString() << "\n";
               }
 
               if (!opt.distinguish_union) {
