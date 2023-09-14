@@ -493,6 +493,52 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
               std::map<std::vector<int>, std::set<int>> positions_to_remove_map;
               std::map<std::vector<int>, std::set<int>> aggregated_positions;
               std::map<std::vector<int>, std::set<int>> k_map_vector;
+
+              std::map<std::set<int>, std::vector<int>> grouped_k_map;
+
+              for (const auto& k_elem : k_map) {
+                  bool found = false;
+
+                  // Search in grouped_k_map for a matching set of integers
+                  for (auto& entry : grouped_k_map) {
+                      if (entry.first == k_elem.second) {
+                          entry.second.push_back(k_elem.first);
+                          found = true;
+                          break;
+                      }
+                  }
+
+                  // If not found, create a new entry in grouped_k_map
+                  if (!found) {
+                      std::vector<int> new_entry = { k_elem.first };
+                      grouped_k_map[k_elem.second] = new_entry;
+                  }
+              }
+
+              // Print grouped_k_map
+              for (const auto& entry : grouped_k_map) {
+                  oss << "K-mer: ";
+                  for (int sample : entry.first) {
+                      oss << sample << " ";
+                  }
+                  oss << "maps to: ";
+                  for (int sample : entry.second) {
+                      oss << sample << " ";
+                  }
+                  oss << "\n";
+              }
+
+              // Print k_map
+              oss << "\nOriginal k_map:" << "\n";
+              for (const auto& k_elem : k_map) {
+                  oss << k_elem.first << " ";
+                  for (int val : k_elem.second) {
+                      oss << val << " ";
+                  }
+                  oss << "\n";
+              }
+
+
               if (!opt.distinguish_union) {
                   if (!opt.distinguish_all_but_one_color && !opt.distinguish_combinations) {
                       int i_ = 0;
