@@ -318,62 +318,111 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   int range_discard = 0;
   int num_written = 0;
   // TODO: Reconstruct below
-  for (const auto& unitig : ccdbg) {
+  for (const auto& unitig : ccdbg) { // Iterate through all the unitigs in the de bruijn graph
     const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
     const UnitigMap<DataAccessor<void>, DataStorage<void>, false> unitig_ = unitig;
-    unitigs_v[n % unitigs_v.size()].push_back(std::make_pair(uc, unitig_));
+    unitigs_v[n % unitigs_v.size()].push_back(std::make_pair(uc, unitig_)); // unitigs_v = vector of vectors of unitigs (b/c each thread contains a vector of unitigs)
     n++;
-    if (unitigs_v[unitigs_v.size()-1].size() >= thresh_size || n >= ccdbg.size()) {
-      for (size_t u_i = 0; u_i < unitigs_v.size(); u_i++) {
+    if (unitigs_v[unitigs_v.size()-1].size() >= thresh_size || n >= ccdbg.size()) { // If we're ready to start processing the unitigs using a series of workers
+      for (size_t u_i = 0; u_i < unitigs_v.size(); u_i++) { // u_i = specific batch of unitigs that a worker will act on
         workers.emplace_back(
           [&, u_i] {
             std::ostringstream oss;
             int _num_written = 0;
             int _range_discard = 0;
-            for (auto unitig_x : unitigs_v[u_i]) {
+            for (auto unitig_x : unitigs_v[u_i]) { // Go through unitigs in the batch labeled u_i
               auto uc = unitig_x.first;
               auto& unitig = (unitig_x.second);
               UnitigColors::const_iterator it_uc = uc->begin(unitig);
               UnitigColors::const_iterator it_uc_end = uc->end();
-              std::map<int, std::set<int>> k_map;
+              std::map<int, std::set<int>> k_map; // key = color; value = list of positions (i.e. k-mers) along the current unitig (note: a k-mer is a position along a unitig)
               for (; it_uc != it_uc_end; ++it_uc) {
                 int color = color_map[it_uc.getColorID()];
                 k_map[color].insert(it_uc.getKmerPosition());
                 // DEBUG:
                 // std::cout << color << " " << unitig.getUnitigKmer(it_uc.getKmerPosition()).rep().toString() << " " << unitig.getUnitigKmer(it_uc.getKmerPosition()).toString() << " " << it_uc.getKmerPosition() << " " << unitig.strand << std::endl;
               }
-              std::set<int> positions_to_remove;
-              if (!opt.distinguish_all_but_one_color && !opt.distinguish_union) {
-                int i_ = 0;
-                for (const auto& k_elem : k_map) {
-                  int j_ = 0;
-                  for (const auto& k_elem2 : k_map) {
-                    if (j_ > i_ && k_elem.first != k_elem2.first) {
-                      std::set<int> intersect;
-                      std::set<int> set_result;
-                      std::set_intersection(k_elem.second.begin(), k_elem.second.end(), k_elem2.second.begin(), k_elem2.second.end(), std::inserter(intersect, intersect.begin())); //if (k_elem2.second.count(k_elem1.second)) // check if set intersection with k_elem2
-                      std::set_union(positions_to_remove.begin(), positions_to_remove.end(), intersect.begin(), intersect.end(), std::inserter(set_result,set_result.begin()));
-                      positions_to_remove = std::move(set_result);
-                    }
-                    j_++;
-                  }
-                  i_++;
-                }
-              } else if (!opt.distinguish_union) {
-                int i_ = 0;
-                if (k_map.size() == tmp_files.size()) {
+              std::set<int> positions_to_remove; // Positions (i.e. k-mers) along the current unitig that will be cut out
+              std::map<std::vector<int>, int> result_map; // Key = colors; Value = Position (i.e. k-mer)
+              if (!opt.distinguish_union) { // If we don't specify --union (since if --union is specified, we don't actually need to do anything, remove any k-mers/positions, etc.)
+                if (!opt.distinguish_all_but_one_color && !opt.distinguish_combinations) { // Workflow: Find k-mers unique/exclusive to each color
                   for (const auto& k_elem : k_map) {
+                    int j_ = 0;
+                    for (const auto& k_elem2 : k_map) {
+                      if (j_ > i_ && k_elem.first != k_elem2.first) {
+                        std::set<int> intersect;
+                        std::set<int> set_result;
+                        std::set_intersection(k_elem.second.begin(), k_elem.second.end(), k_elem2.second.begin(), k_elem2.second.end(), std::inserter(intersect, intersect.begin())); //if (k_elem2.second.count(k_elem1.second)) // check if set intersection with k_elem2
+                        std::set_union(positions_to_remove.begin(), positions_to_remove.end(), intersect.begin(), intersect.end(), std::inserter(set_result, set_result.begin()));
+                        positions_to_remove = std::move(set_result); // Remove k-mers that contain more than one color
+                      }
+                      j_++;
+                    }
                     i_++;
-                    if (positions_to_remove.size() == 0) {
-                      positions_to_remove = k_elem.second;
-                    } else {
-                      std::set<int> set_result;
-                      std::set_intersection(positions_to_remove.begin(), positions_to_remove.end(), k_elem.second.begin(), k_elem.second.end(), std::inserter(set_result,set_result.begin()));
-                      positions_to_remove = std::move(set_result);
+                  }
+                } else if (!opt.distinguish_combinations) { // workflow: opt.distinguish_all_but_one_color (e.g. if we have 8 colors, for each color, output all k-mers except those that are 8-colored)
+                  if (k_map.size() == tmp_files.size()) { // Note: tmp_files.size() = total number of colors
+                    for (const auto& k_elem : k_map) {
+                      if (positions_to_remove.size() == 0) {
+                        positions_to_remove = k_elem.second;
+                      } else {
+                        std::set<int> set_result;
+                        std::set_intersection(positions_to_remove.begin(), positions_to_remove.end(), k_elem.second.begin(), k_elem.second.end(), std::inserter(set_result, set_result.begin()));
+                        positions_to_remove = std::move(set_result); // Remove k-mers that have ALL colors
+                      }
                     }
                   }
+                } else if (!opt.distinguish_all_but_one_color) { // workflow: opt.distinguish_combinations (output every combination [i.e. each area in the Venn diagram], with colors separated by underscores)
+                  if (k_map.size() >= 2) {
+                    std::vector<int> consolidated_key;
+                    // iterate over k_map and build the consolidated key
+                    for (auto it = k_map.begin(); it != k_map.end(); ++it) {
+                      consolidated_key.push_back(it->first);
+                    }
+                    int integer_value = *(k_map.begin()->second.begin());
+                    result_map[consolidated_key] = integer_value; // {0 1 2} : 0 (color : position)
+                  }
+                  for (const auto& k_elem : result_map) {
+                    int curr_pos = -1;
+                    std::string colored_contig = "";
+                    auto color = k_elem.first;
+                    auto pos = k_elem.second;
+                    std::stringstream ss;
+                    for (int i = 0; i < color.size(); ++i) {
+                      ss << color[i];
+                      if (i < color.size() - 1) {
+                        ss << "_";
+                      }
+                    }
+                    std::string km = unitig.getUnitigKmer(pos).toString();
+                    if (curr_pos == -1) { // How to correspond color?
+                      colored_contig = km;
+                    } else if (pos == curr_pos + 1) {
+                      colored_contig += km[km.length() - 1];
+                    } else {
+                      if (colored_contig.length() >= rb && colored_contig.length() <= re) {
+                        oss << ">" << ss.str() << "\n" << colored_contig << "\n";
+                        _num_written++;
+                      } else {
+                        _range_discard++;
+                      }
+                      colored_contig = km;
+                    }
+                    curr_pos = pos;
+                    if (colored_contig != "") {
+                      if (colored_contig.length() >= rb && colored_contig.length() <= re) {
+                        oss << ">" << ss.str() << "\n" << colored_contig << "\n";
+                        _num_written++;
+                      } else {
+                        _range_discard++;
+                      }
+                    }
+                  }
+                  k_map.clear(); // No need to write out additional contigs, since we've written them out above
                 }
-              }
+              } // end if !opt.distinguish_union
+
+              // Now, write out what remains among the contigs
               for (const auto& k_elem : k_map) {
                 int curr_pos = -1;
                 std::string colored_contig = "";
