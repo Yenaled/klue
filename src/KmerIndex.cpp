@@ -346,6 +346,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
               std::map<std::vector<int>, int> result_map; // Key = colors; Value = Position (i.e. k-mer)
               if (!opt.distinguish_union) { // If we don't specify --union (since if --union is specified, we don't actually need to do anything, remove any k-mers/positions, etc.)
                 if (!opt.distinguish_all_but_one_color && !opt.distinguish_combinations) { // Workflow: Find k-mers unique/exclusive to each color
+                  int i_ = 0;
                   for (const auto& k_elem : k_map) {
                     int j_ = 0;
                     for (const auto& k_elem2 : k_map) {
