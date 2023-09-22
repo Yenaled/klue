@@ -64,6 +64,48 @@ std::string generate_tmp_file(std::string seed) {
   return tmp_file;
 }
 
+// Perform DFS traversal starting from unitig head until no neighbors are found or cycle completed
+std::string forwardDFS(ColoredCDBG<void>& ccdbg, UnitigMap<DataAccessor<void>, DataStorage<void>>& um, Kmer& unitig_tail, int k, int depth, int MAX_DEPTH, std::vector<std::string>& visited) {
+    std::string assembledSequence = "";
+
+    // Check if the unitig is not empty and if its kmer has not been visited before
+    if (!um.isEmpty && std::find(visited.begin(), visited.end(), um.getUnitigKmer(um.dist).toString()) == visited.end()) {
+        unitig_tail = um.getUnitigKmer(um.dist);
+        assembledSequence = unitig_tail.toString().substr(k - 1, 1);
+        visited.push_back(unitig_tail.toString()); // Keep track of visited kmer strings
+
+        for (char nextChar : "ACGT") {
+            std::string next_kmer = unitig_tail.toString().substr(1, k - 1) + nextChar;
+            Kmer neighbor(next_kmer.c_str());
+            UnitigMap<DataAccessor<void>, DataStorage<void>> neighbor_um = ccdbg.find(neighbor, false);
+
+            assembledSequence += forwardDFS(ccdbg, neighbor_um, unitig_tail, k, depth + 1, MAX_DEPTH, visited);
+        }
+    }
+    return assembledSequence;
+}
+
+// FIX reverseDFS
+std::string reverseDFS(ColoredCDBG<void>& ccdbg, UnitigMap<DataAccessor<void>, DataStorage<void>>& um, Kmer& unitig_head, int k, int depth, int MAX_DEPTH, std::vector<std::string>& visited) {
+    std::string assembledSequence = "";
+
+    // Check if the unitig is not empty and if its kmer has not been visited before
+    if (!um.isEmpty && std::find(visited.begin(), visited.end(), um.getUnitigKmer(um.dist).toString()) == visited.end()) {
+        unitig_head = um.getUnitigKmer(um.dist);
+        assembledSequence = unitig_head.toString().substr(0, 1);
+        visited.push_back(unitig_head.toString()); // Keep track of visited kmer strings
+
+        for (char prevChar : "ACGT") {
+            std::string prev_kmer = prevChar + unitig_tail.toString().substr(0, k - 1);
+            Kmer neighbor(prev_kmer.c_str());
+            UnitigMap<DataAccessor<void>, DataStorage<void>> neighbor_um = ccdbg.find(neighbor, false); // try with true
+
+            assembledSequence += reverseDFS(ccdbg, neighbor_um, unitig_tail, k, depth + 1, MAX_DEPTH, visited);
+        }
+    }
+    return assembledSequence;
+}
+
 void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
   // Read in FASTAs and output each color into a new separate temp file
   std::vector<std::string> transfasta = opt.transfasta;
@@ -317,6 +359,98 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   if (rb == 0 && re == 0) re = std::numeric_limits<uint32_t>::max();
   int range_discard = 0;
   int num_written = 0;
+  // DFS
+  // add program option?
+  for (const auto& unitig : ccdbg) {
+        const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
+        const UnitigMap<DataAccessor<void>, DataStorage<void>, false> unitig_ = unitig;
+        unitigs_v[n % unitigs_v.size()].push_back(std::make_pair(uc, unitig_)); // unitigs_v = vector of vectors of unitigs (b/c each thread contains a vector of unitigs)
+        n++;
+        if (unitigs_v[unitigs_v.size() - 1].size() >= thresh_size || n >= ccdbg.size()) { // If we're ready to start processing the unitigs using a series of workers
+            for (size_t u_i = 0; u_i < unitigs_v.size(); u_i++) { // u_i = specific batch of unitigs that a worker will act on
+                workers.emplace_back(
+                    [&, u_i] {
+                        // std::ostringstream oss;
+                        for (auto unitig_x : unitigs_v[u_i]) { // Go through unitigs in the batch labeled u_i
+                            auto uc = unitig_x.first;
+                            auto& unitig = (unitig_x.second);
+                            UnitigColors::const_iterator it_uc = uc->begin(unitig);
+                            UnitigColors::const_iterator it_uc_end = uc->end();
+                            int color = color_map[it_uc.getColorID()];
+                            // forwardDFS traversal
+                            const int MAX_DEPTH = 10;
+                            Kmer unitig_tail = unitig.getUnitigKmer(unitig.len - 1); // get last kmer
+                            UnitigMap <DataAccessor<void>, DataStorage<void>> um = ccdbg.find(unitig_tail, false);
+                            std::vector<std::string> visited;
+                            std::string sequence = forwardDFS(ccdbg, um, unitig_tail, k, 0, MAX_DEPTH, visited);
+                            sequence.erase(0, 1);
+                            // reverseDFS traversal
+                            visited.clear();
+                            Kmer unitig_head = unitig.getUnitigKmer(unitig.dist); // get first kmer
+                            UnitigMap < DataAccessor<void>, DataStorage<void> > um = ccdbg.find(unitig_head, false);  // try with true
+                            std::string sequence = reverseDFS(ccdbg, um, unitig_head, k, 0, MAX_DEPTH, visited);
+
+
+                            // assemble contigs
+                            std::string result = unitig.getUnitigKmer(unitig.dist).toString();
+                            std::set<std::string> visitedSet;
+                            for (int len = 0; len < unitig.len; ++len) {
+                                color = color_map[it_uc.getColorID()];
+                                Kmer query_kmer = unitig.getUnitigKmer(len);
+                                if (visitedSet.find(query_kmer.toString()) == visitedSet.end()) { visitedSet.insert(query_kmer.toString()); } // Keep track of visited kmer strings
+                                for (char nextChar : "ACGT") {
+                                    std::string next_kmer = query_kmer.toString().substr(1, k - 1) + nextChar;
+                                    Kmer neighbor(next_kmer.c_str());
+                                    UnitigMap<DataAccessor<void>, DataStorage<void>> um = ccdbg.find(neighbor, false);
+                                    if (!um.isEmpty && visitedSet.find(um.getUnitigKmer(um.dist).toString()) == visitedSet.end() && um.dist == len + 1) {
+                                        result += um.getUnitigKmer(um.dist).toString().substr(k - 1, 1);
+                                        visitedSet.insert(um.getUnitigKmer(um.dist).toString());
+                                        // DEBUG
+                                        // std::cout << color << " " << um.getUnitigKmer(um.dist).toString() << " " << um.dist << "\n";
+                                    }
+                                }
+                                it_uc++;
+                            }
+                            result += sequence;
+                            // oss << ">" << color << "\n" << result << "\n";
+                            visitedSet.clear();
+                            // backwards construction
+                            /*
+                            it_uc = uc->begin(unitig);
+                            result = unitig.getUnitigKmer(unitig.len - 1).toString();
+                            for (int len = unitig.len - 1; len > -1; --len) {
+                                Kmer query_kmer = unitig.getUnitigKmer(len);
+                                if (visitedSet.find(query_kmer.toString()) == visitedSet.end()) { visitedSet.insert(query_kmer.toString()); } // Keep track of visited kmer strings
+                                for (char prevChar : "ACGT") {
+                                    std::string prev_kmer = prevChar + query_kmer.toString().substr(0, k - 1);
+                                    Kmer neighbor(prev_kmer.c_str());
+                                    UnitigMap<DataAccessor<void>, DataStorage<void>> um = ccdbg.find(neighbor, false);
+                                    if (!um.isEmpty && visitedSet.find(um.getUnitigKmer(um.dist).toString()) == visitedSet.end() && um.dist == len - 1) {
+                                        result = um.getUnitigKmer(um.dist).toString().substr(0, 1) + result;
+                                        visitedSet.insert(um.getUnitigKmer(um.dist).toString());
+                                        // DEBUG
+                                        // std::cout << color << " " << um.getUnitigKmer(um.dist).toString() << " " << um.dist << "\n";
+                                    }
+                                }
+                                it_uc++;
+                            }
+                            std::cout << ">[bwd]: " << color << " " << result << "\n";
+                            */
+                        }
+                        std::unique_lock<std::mutex> lock(mutex_unitigs);
+                        // o << oss.str();
+                    }
+                );
+            }
+            for (auto& t : workers) t.join();
+            workers.clear();
+            for (size_t u_i = 0; u_i < unitigs_v.size(); u_i++) {
+                unitigs_v[u_i].clear();
+            }
+        }
+        // o.flush();
+    }
+  
   // TODO: Reconstruct below
   for (const auto& unitig : ccdbg) { // Iterate through all the unitigs in the de bruijn graph
     const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
