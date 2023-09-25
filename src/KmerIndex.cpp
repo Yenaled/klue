@@ -384,13 +384,13 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                 Kmer unitig_tail = unitig.getUnitigKmer(unitig.len - 1); // get last kmer
                 UnitigMap <DataAccessor<void>, DataStorage<void>> um = ccdbg.find(unitig_tail, false);
                 std::vector<std::string> visited;
-                std::string sequence_to_append = forwardDFS(ccdbg, um, unitig_tail, k, 0, MAX_DEPTH, visited);
+                sequence_to_append = forwardDFS(ccdbg, um, unitig_tail, k, 0, MAX_DEPTH, visited);
                 sequence_to_append.erase(0, 1);
                 // reverseDFS traversal
                 visited.clear();
                 Kmer unitig_head = unitig.getUnitigKmer(unitig.dist); // get first kmer
                 um = ccdbg.find(unitig_head, false);  // try with true
-                std::string sequence_to_prepend = reverseDFS(ccdbg, um, unitig_head, k, 0, MAX_DEPTH, visited);
+                sequence_to_prepend = reverseDFS(ccdbg, um, unitig_head, k, 0, MAX_DEPTH, visited);
                 sequence_to_prepend.erase(sequence_to_prepend.length() - 1);
                 if (sequence_to_prepend == sequence_to_append) { sequence_to_prepend = ""; }
               } // End traversal
