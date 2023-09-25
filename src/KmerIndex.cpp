@@ -64,6 +64,48 @@ std::string generate_tmp_file(std::string seed) {
   return tmp_file;
 }
 
+// Perform DFS traversal starting from unitig head until no neighbors are found or cycle completed
+std::string forwardDFS(ColoredCDBG<void>& ccdbg, UnitigMap<DataAccessor<void>, DataStorage<void>>& um, Kmer& unitig_tail, int k, int depth, int MAX_DEPTH, std::vector<std::string>& visited) {
+    std::string assembledSequence = "";
+
+    // Check if the unitig is not empty and if its kmer has not been visited before
+    if (!um.isEmpty && std::find(visited.begin(), visited.end(), um.getUnitigKmer(um.dist).toString()) == visited.end()) {
+        unitig_tail = um.getUnitigKmer(um.dist);
+        assembledSequence = unitig_tail.toString().substr(k - 1, 1);
+        visited.push_back(unitig_tail.toString()); // Keep track of visited kmer strings
+
+        for (char nextChar : "ACGT") {
+            std::string next_kmer = unitig_tail.toString().substr(1, k - 1) + nextChar;
+            Kmer neighbor(next_kmer.c_str());
+            UnitigMap<DataAccessor<void>, DataStorage<void>> neighbor_um = ccdbg.find(neighbor, false);
+
+            assembledSequence += forwardDFS(ccdbg, neighbor_um, unitig_tail, k, depth + 1, MAX_DEPTH, visited);
+        }
+    }
+    return assembledSequence;
+}
+
+// Perform backwards DFS traversal starting from unitig tail until no neighbros are found or cycle completed
+std::string reverseDFS(ColoredCDBG<void>& ccdbg, UnitigMap<DataAccessor<void>, DataStorage<void>>& um, Kmer& unitig_head, int k, int depth, int MAX_DEPTH, std::vector<std::string>& visited) {
+    std::string assembledSequence = "";
+
+    // Check if the unitig is not empty and if its kmer has not been visited before
+    if (!um.isEmpty && std::find(visited.begin(), visited.end(), um.getUnitigKmer(um.dist).toString()) == visited.end()) {
+        unitig_head = um.getUnitigKmer(um.dist);
+        assembledSequence = unitig_head.toString().substr(0, 1);
+        visited.push_back(unitig_head.toString()); // Keep track of visited kmer strings
+
+        for (char prevChar : "ACGT") {
+            std::string prev_kmer = prevChar + unitig_head.toString().substr(0, k - 1);
+            Kmer neighbor(prev_kmer.c_str());
+            UnitigMap<DataAccessor<void>, DataStorage<void>> neighbor_um = ccdbg.find(neighbor, false); // try with true
+
+            assembledSequence += reverseDFS(ccdbg, neighbor_um, unitig_head, k, depth + 1, MAX_DEPTH, visited);
+        }
+    }
+    return assembledSequence;
+}
+
 void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
   // Read in FASTAs and output each color into a new separate temp file
   std::vector<std::string> transfasta = opt.transfasta;
@@ -335,6 +377,20 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
               auto& unitig = (unitig_x.second);
               UnitigColors::const_iterator it_uc = uc->begin(unitig);
               UnitigColors::const_iterator it_uc_end = uc->end();
+              // forwardDFS traversal
+              const int MAX_DEPTH = 10;
+              Kmer unitig_tail = unitig.getUnitigKmer(unitig.len - 1); // get last kmer
+              UnitigMap <DataAccessor<void>, DataStorage<void>> um = ccdbg.find(unitig_tail, false);
+              std::vector<std::string> visited;
+              std::string sequence_to_append = forwardDFS(ccdbg, um, unitig_tail, k, 0, MAX_DEPTH, visited);
+              sequence_to_append.erase(0, 1);
+              // reverseDFS traversal
+              visited.clear();
+              Kmer unitig_head = unitig.getUnitigKmer(unitig.dist); // get first kmer
+              um = ccdbg.find(unitig_head, false);  // try with true
+              std::string sequence_to_prepend = reverseDFS(ccdbg, um, unitig_head, k, 0, MAX_DEPTH, visited);
+              sequence_to_prepend.erase(sequence_to_prepend.length() - 1);
+              if (sequence_to_prepend == sequence_to_append) { sequence_to_prepend = ""; }
               std::map<int, std::set<int>> k_map; // key = color; value = list of positions (i.e. k-mers) along the current unitig (note: a k-mer is a position along a unitig)
               for (; it_uc != it_uc_end; ++it_uc) {
                 int color = color_map[it_uc.getColorID()];
@@ -402,7 +458,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                       colored_contig += km[km.length() - 1];
                     } else {
                       if (colored_contig.length() >= rb && colored_contig.length() <= re) {
-                        oss << ">" << ss.str() << "\n" << colored_contig << "\n";
+                        oss << ">" << ss.str() << "\n" << sequence_to_prepend << colored_contig << sequence_to_append << "\n";
                         _num_written++;
                       } else {
                         _range_discard++;
@@ -412,7 +468,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                     curr_pos = pos;
                     if (colored_contig != "") {
                       if (colored_contig.length() >= rb && colored_contig.length() <= re) {
-                        oss << ">" << ss.str() << "\n" << colored_contig << "\n";
+                        oss << ">" << ss.str() << "\n" << sequence_to_prepend << colored_contig << sequence_to_append << "\n";
                         _num_written++;
                       } else {
                         _range_discard++;
@@ -437,7 +493,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                     } else if (pos == curr_pos+1) {
                       colored_contig += km[km.length()-1];
                     } else {
-                      if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << std::to_string(color) << "\n" << colored_contig << "\n"; _num_written++; }
+                      if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << std::to_string(color) << "\n" << sequence_to_prepend << colored_contig << sequence_to_append << "\n"; _num_written++; }
                       else _range_discard++;
                       colored_contig = km;
                     }
@@ -445,7 +501,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                   }
                 }
                 if (colored_contig != "") {
-                  if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << std::to_string(color) << "\n" << colored_contig << "\n"; _num_written++; }
+                  if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << std::to_string(color) << "\n" << sequence_to_prepend << colored_contig << sequence_to_append << "\n"; _num_written++; }
                   else _range_discard++;
                 }
               }
