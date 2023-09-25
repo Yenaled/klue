@@ -85,7 +85,7 @@ std::string forwardDFS(ColoredCDBG<void>& ccdbg, UnitigMap<DataAccessor<void>, D
     return assembledSequence;
 }
 
-// FIX reverseDFS
+// Perform backwards DFS traversal starting from unitig tail until no neighbros are found or cycle completed
 std::string reverseDFS(ColoredCDBG<void>& ccdbg, UnitigMap<DataAccessor<void>, DataStorage<void>>& um, Kmer& unitig_head, int k, int depth, int MAX_DEPTH, std::vector<std::string>& visited) {
     std::string assembledSequence = "";
 
@@ -96,11 +96,11 @@ std::string reverseDFS(ColoredCDBG<void>& ccdbg, UnitigMap<DataAccessor<void>, D
         visited.push_back(unitig_head.toString()); // Keep track of visited kmer strings
 
         for (char prevChar : "ACGT") {
-            std::string prev_kmer = prevChar + unitig_tail.toString().substr(0, k - 1);
+            std::string prev_kmer = prevChar + unitig_head.toString().substr(0, k - 1);
             Kmer neighbor(prev_kmer.c_str());
             UnitigMap<DataAccessor<void>, DataStorage<void>> neighbor_um = ccdbg.find(neighbor, false); // try with true
 
-            assembledSequence += reverseDFS(ccdbg, neighbor_um, unitig_tail, k, depth + 1, MAX_DEPTH, visited);
+            assembledSequence += reverseDFS(ccdbg, neighbor_um, unitig_head, k, depth + 1, MAX_DEPTH, visited);
         }
     }
     return assembledSequence;
@@ -382,15 +382,14 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                             Kmer unitig_tail = unitig.getUnitigKmer(unitig.len - 1); // get last kmer
                             UnitigMap <DataAccessor<void>, DataStorage<void>> um = ccdbg.find(unitig_tail, false);
                             std::vector<std::string> visited;
-                            std::string sequence = forwardDFS(ccdbg, um, unitig_tail, k, 0, MAX_DEPTH, visited);
-                            sequence.erase(0, 1);
+                            std::string sequence_to_append = forwardDFS(ccdbg, um, unitig_tail, k, 0, MAX_DEPTH, visited);
+                            sequence_to_append.erase(0, 1);
                             // reverseDFS traversal
                             visited.clear();
                             Kmer unitig_head = unitig.getUnitigKmer(unitig.dist); // get first kmer
                             UnitigMap < DataAccessor<void>, DataStorage<void> > um = ccdbg.find(unitig_head, false);  // try with true
-                            std::string sequence = reverseDFS(ccdbg, um, unitig_head, k, 0, MAX_DEPTH, visited);
-
-
+                            std::string sequence_to_prepend = reverseDFS(ccdbg, um, unitig_head, k, 0, MAX_DEPTH, visited);
+                            sequence_to_prepend.erase(sequence_to_prepend.length() - 1);
                             // assemble contigs
                             std::string result = unitig.getUnitigKmer(unitig.dist).toString();
                             std::set<std::string> visitedSet;
@@ -411,7 +410,8 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                 }
                                 it_uc++;
                             }
-                            result += sequence;
+                            std::string result_forward = result + sequence_to_append;
+                            std::string result_reverse = sequence_to_prepend + result;
                             // oss << ">" << color << "\n" << result << "\n";
                             visitedSet.clear();
                             // backwards construction
