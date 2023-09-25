@@ -63,6 +63,7 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
   int distinguish_all_flag = 0;
   int distinguish_all_but_one_flag = 0;
   int distinguish_combinations_flag = 0;
+  int extension_flag = 0;
   const char *opt_string = "o:k:m:t:r:M:g:p";
   static struct option long_options[] = {
     // long args
@@ -70,6 +71,7 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
     {"all", no_argument, &distinguish_all_flag, 1},
     {"all-but-one", no_argument, &distinguish_all_but_one_flag, 1},
     {"combinations", no_argument, &distinguish_combinations_flag, 1},
+    {"extend", no_argument, &extension_flag, 1},
     // short args
     {"output", required_argument, 0, 'o'},
     {"pipe", no_argument, &pipe_flag, 'p'},
@@ -164,6 +166,9 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
   }
   if (distinguish_combinations_flag) {
     opt.distinguish_combinations = true;
+  }
+  if (extension_flag) {
+    opt.extend = true;
   }
 
   for (int i = optind; i < argc; i++) {
@@ -649,6 +654,7 @@ void usageDistinguish() {
        << "    --all                   Set the mode to be extracting sequences found in any input" << endl
        << "    --all-but-one           Set the mode to be extracting all sequences except those found across all inputs" << endl
        << "    --combinations          Set the mode to be listing every combination of sets" << endl
+       << "    --extend                Extend the contigs" << endl
        << "-g, --map-file=STRING       Filename for mapping output FASTA headers to file names" << endl
        << "-t, --threads=INT           Number of threads to use (default: 1)" << endl
        << "-m, --min-size=INT          Length of minimizers (default: automatically chosen)" << endl
