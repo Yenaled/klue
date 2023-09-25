@@ -387,7 +387,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                             // reverseDFS traversal
                             visited.clear();
                             Kmer unitig_head = unitig.getUnitigKmer(unitig.dist); // get first kmer
-                            UnitigMap < DataAccessor<void>, DataStorage<void> > um = ccdbg.find(unitig_head, false);  // try with true
+                            um = ccdbg.find(unitig_head, false);  // try with true
                             std::string sequence_to_prepend = reverseDFS(ccdbg, um, unitig_head, k, 0, MAX_DEPTH, visited);
                             sequence_to_prepend.erase(sequence_to_prepend.length() - 1);
                             // assemble contigs
@@ -400,7 +400,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                 for (char nextChar : "ACGT") {
                                     std::string next_kmer = query_kmer.toString().substr(1, k - 1) + nextChar;
                                     Kmer neighbor(next_kmer.c_str());
-                                    UnitigMap<DataAccessor<void>, DataStorage<void>> um = ccdbg.find(neighbor, false);
+                                    um = ccdbg.find(neighbor, false);
                                     if (!um.isEmpty && visitedSet.find(um.getUnitigKmer(um.dist).toString()) == visitedSet.end() && um.dist == len + 1) {
                                         result += um.getUnitigKmer(um.dist).toString().substr(k - 1, 1);
                                         visitedSet.insert(um.getUnitigKmer(um.dist).toString());
