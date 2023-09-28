@@ -10,6 +10,8 @@
 #include <unordered_map>
 #include <string>
 #include "ColoredCDBG.hpp"
+#include <ExpressionParser.h>
+#include <iomanip>
 
 
 // other helper functions
@@ -104,6 +106,37 @@ std::string reverseDFS(ColoredCDBG<void>& ccdbg, UnitigMap<DataAccessor<void>, D
         }
     }
     return assembledSequence;
+}
+
+// Split user-inputted set operation commands by " "
+std::vector<std::string> split(const std::string& s, char delimiter) {
+    std::vector<std::string> tokens;
+    std::string token;
+    std::istringstream tokenStream(s);
+    while (std::getline(tokenStream, token, delimiter)) { tokens.push_back(token); }
+    return tokens;
+}
+
+// Recursively compute set operations (union and intersection are nodes) that correspond to specific sets (leaves)
+std::set<int> computeSetOperation(const Node* root, const std::map<int, std::set<int>>& k_map) {
+    // Return an empty set for a null node
+    if (!root) return {};
+    // If the node is a leaf node (neither 'U' nor 'I')
+    if (root->value != 'U' && root->value != 'I') {
+        auto it = k_map.find(root->value - 'A'); // 'A' maps to 0, 'B' to 1, etc.
+        return (it != k_map.end()) ? it->second : std::set<int>{};
+    }
+    // For union and intersection operations, recursively process the left and right subtrees
+    auto leftSet = computeSetOperation(root->left, k_map);
+    auto rightSet = computeSetOperation(root->right, k_map);
+    std::set<int> result;
+    if (root->value == 'U') {
+        std::set_union(leftSet.begin(), leftSet.end(), rightSet.begin(), rightSet.end(), std::inserter(result, result.end()));
+    }
+    else if (root->value == 'I') {
+        std::set_intersection(leftSet.begin(), leftSet.end(), rightSet.begin(), rightSet.end(), std::inserter(result, result.end()));
+    }
+    return result;
 }
 
 void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
@@ -359,6 +392,20 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   if (rb == 0 && re == 0) re = std::numeric_limits<uint32_t>::max();
   int range_discard = 0;
   int num_written = 0;
+  // TEST set expressions
+  std::string input_str = "(AUB)IC AU(BIC) (AIB)UC AI(BUC) AIBIC"; // LATER retrieve from main.cpp
+  bool perform_set_operations = false;
+  auto expressions = split(input_str, ' ');
+  std::map<std::string, int> expr_to_int;
+  if (!input_str.empty()) {
+    perform_set_operations = true;
+    ExpressionParser parser(input_str);  // create parser instance
+    auto tokens = parser.tokenize(input_str);
+    for (int i = 0; i < expressions.size(); ++i) { expr_to_int[expressions[i]] = i; }
+    int maxWidth = 0;
+    for (const auto& pair : expr_to_int) { maxWidth = std::max(maxWidth, static_cast<int>(pair.first.length())); }
+    for (const auto& pair : expr_to_int) { std::cout << std::setw(maxWidth + 8) << pair.first << ": " << pair.second << "\n"; }
+  }
   // TODO: Reconstruct below
   for (const auto& unitig : ccdbg) { // Iterate through all the unitigs in the de bruijn graph
     const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
@@ -403,6 +450,27 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
               }
               std::set<int> positions_to_remove; // Positions (i.e. k-mers) along the current unitig that will be cut out
               std::map<std::vector<int>, int> result_map; // Key = colors; Value = Position (i.e. k-mer)
+              std::stringstream ss; // For --combinations outputting aggregated colors
+              int int_to_print = 1;
+              // Set operations
+              if (perform_set_operations) {
+                  for (const auto& expr : expressions) {
+                      ExpressionParser expr_parser(expr);
+                      Node* root = expr_parser.parse();
+                      std::set<int> set_operation_result = computeSetOperation(root, k_map); // set of positions to keep
+                      std::string output = "";
+                      for (int position : set_operation_result) {
+                          std::string km = unitig.getUnitigKmer(position).toString();
+                          if (output.empty()) { output = km; }
+                          else { output += km[km.size() - 1]; }
+                      }
+                      if (!output.empty()) {
+                          int input_set = expr_to_int[expr];
+                          std::cout << ">" << input_set << "\n" << output << "\n";
+                      }
+                  }
+                  continue; // do not extract colored_contigs
+              }                 
               if (!opt.distinguish_union) { // If we don't specify --union (since if --union is specified, we don't actually need to do anything, remove any k-mers/positions, etc.)
                 if (!opt.distinguish_all_but_one_color && !opt.distinguish_combinations) { // Workflow: Find k-mers unique/exclusive to each color
                   int i_ = 0;
@@ -432,53 +500,46 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                       }
                     }
                   }
-                } else if (!opt.distinguish_all_but_one_color) { // workflow: opt.distinguish_combinations (output every combination [i.e. each area in the Venn diagram], with colors separated by underscores)
+                } else if (!opt.distinguish_all_but_one_color) { // workflow: opt.distinguish_combinations (output every combination [i.e. each area in the Venn diagram], with colors separated by underscores
+                  std::set<int> exclusive_positions;
+                  for (const auto& k_elem : k_map) { // Iterate over each color and get exclusive positions for that color
+                      bool is_exclusive = true;
+                      std::set<int> current_positions = k_elem.second;                                        
+                      for (const auto& other_elem : k_map) { // Check if the positions of this color appear in other colors
+                          if (k_elem.first != other_elem.first) {
+                              std::set<int> intersection;
+                              std::set_intersection(current_positions.begin(), current_positions.end(),
+                                  other_elem.second.begin(), other_elem.second.end(),
+                                  std::inserter(intersection, intersection.begin()));
+                              if (!intersection.empty()) {
+                                  is_exclusive = false;
+                                  break;
+                              }
+                          }
+                      }
+                      if (is_exclusive) { exclusive_positions.insert(current_positions.begin(), current_positions.end()); }
+                  }
+                  positions_to_remove.insert(exclusive_positions.begin(), exclusive_positions.end()); // Add the exclusive positions to the positions_to_remove
                   if (k_map.size() >= 2) {
-                    std::vector<int> consolidated_key;
-                    // iterate over k_map and build the consolidated key
-                    for (auto it = k_map.begin(); it != k_map.end(); ++it) {
-                      consolidated_key.push_back(it->first);
-                    }
-                    int integer_value = *(k_map.begin()->second.begin());
-                    result_map[consolidated_key] = integer_value; // {0 1 2} : 0 (color : position)
+                      std::vector<int> consolidated_key;
+                      for (auto it = k_map.begin(); it != k_map.end(); ++it) { // Oterate over k_map and build the consolidated key
+                          consolidated_key.push_back(it->first);
+                      }
+                      int integer_value = *(k_map.begin()->second.begin());
+                      result_map[consolidated_key] = integer_value; // {0 1 2} : 0 (color : position)                                        
                   }
                   for (const auto& k_elem : result_map) {
-                    int curr_pos = -1;
-                    std::string colored_contig = "";
-                    auto color = k_elem.first;
-                    auto pos = k_elem.second;
-                    std::stringstream ss;
-                    for (int i = 0; i < color.size(); ++i) {
-                      ss << color[i];
-                      if (i < color.size() - 1) {
-                        ss << "_";
+                      int curr_pos = -1;
+                      std::string colored_contig = "";
+                      auto color = k_elem.first;
+                      auto pos = k_elem.second;
+                      for (int i = 0; i < color.size(); ++i) {
+                          ss << color[i];
+                          if (i < color.size() - 1) {
+                              ss << "_";
+                          }
                       }
-                    }
-                    std::string km = unitig.getUnitigKmer(pos).toString();
-                    if (curr_pos == -1) { // How to correspond color?
-                      colored_contig = km;
-                    } else if (pos == curr_pos + 1) {
-                      colored_contig += km[km.length() - 1];
-                    } else {
-                      if (colored_contig.length() >= rb && colored_contig.length() <= re) {
-                        oss << ">" << ss.str() << "\n" << sequence_to_prepend << colored_contig << sequence_to_append << "\n";
-                        _num_written++;
-                      } else {
-                        _range_discard++;
-                      }
-                      colored_contig = km;
-                    }
-                    curr_pos = pos;
-                    if (colored_contig != "") {
-                      if (colored_contig.length() >= rb && colored_contig.length() <= re) {
-                        oss << ">" << ss.str() << "\n" << sequence_to_prepend << colored_contig << sequence_to_append << "\n";
-                        _num_written++;
-                      } else {
-                        _range_discard++;
-                      }
-                    }
-                  }
-                  k_map.clear(); // No need to write out additional contigs, since we've written them out above
+                   }  
                 }
               } // end if !opt.distinguish_union
 
@@ -487,25 +548,29 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                 int curr_pos = -1;
                 std::string colored_contig = "";
                 auto color = k_elem.first;
+                std::string color_key = std::to_string(color);
                 //std::string contig_metadata = " :" + unitig.dist + "," + unitig.len + "," + unitig.size + "," + unitig.strand;
-                for (const auto &pos : k_elem.second) {
-                  if (!positions_to_remove.count(pos)) {
-                    std::string km = unitig.getUnitigKmer(pos).toString();
-                    if (curr_pos == -1) { // How to correspond color?
-                      colored_contig = km;
-                    } else if (pos == curr_pos+1) {
-                      colored_contig += km[km.length()-1];
-                    } else {
-                      if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << std::to_string(color) << "\n" << sequence_to_prepend << colored_contig << sequence_to_append << "\n"; _num_written++; }
-                      else _range_discard++;
-                      colored_contig = km;
+                if (opt.distinguish_combinations) { color_key = ss.str(); int_to_print++; }
+                if (int_to_print == k_map.size()) {
+                  for (const auto &pos : k_elem.second) {
+                    if (!positions_to_remove.count(pos)) {
+                      std::string km = unitig.getUnitigKmer(pos).toString();
+                      if (curr_pos == -1) { // How to correspond color?
+                        colored_contig = km;
+                      } else if (pos == curr_pos+1) {
+                        colored_contig += km[km.length()-1];
+                      } else {
+                        if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << color_key << "\n" << sequence_to_prepend << colored_contig << sequence_to_append << "\n"; _num_written++; }
+                        else _range_discard++;
+                        colored_contig = km;
+                      }
+                      curr_pos = pos;
                     }
-                    curr_pos = pos;
                   }
-                }
-                if (colored_contig != "") {
-                  if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << std::to_string(color) << "\n" << sequence_to_prepend << colored_contig << sequence_to_append << "\n"; _num_written++; }
-                  else _range_discard++;
+                  if (colored_contig != "") {
+                    if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << color_key << "\n" << sequence_to_prepend << colored_contig << sequence_to_append << "\n"; _num_written++; }
+                    else _range_discard++;
+                  }
                 }
               }
             }
