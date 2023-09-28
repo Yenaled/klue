@@ -17,6 +17,9 @@ std::vector<Token> ExpressionParser::tokenize(const std::string& input) {
         case 'I':
             tokens.push_back(Token(INTERSECT, c));
             break;
+        case '\\':
+            tokens.push_back(Token(DIFFERENCE, c));
+            break;
         case '(':
             tokens.push_back(Token(OPEN_PAR, c));
             break;
@@ -33,9 +36,7 @@ std::vector<Token> ExpressionParser::tokenize(const std::string& input) {
 
 Node* ExpressionParser::parsePrimary(size_t& index) {
     if (index >= tokens.size()) return nullptr;
-
     Node* node = nullptr;
-
     if (tokens[index].type == VALUE) {
         node = new Node(tokens[index].value);
         index++;
@@ -53,15 +54,11 @@ Node* ExpressionParser::parsePrimary(size_t& index) {
 
 Node* ExpressionParser::parseExpression(size_t& index) {
     if (index >= tokens.size()) return nullptr;
-
     Node* left = parsePrimary(index);
-
-    while (index < tokens.size() && (tokens[index].type == UNION || tokens[index].type == INTERSECT)) {
+    while (index < tokens.size() && (tokens[index].type == UNION || tokens[index].type == INTERSECT || tokens[index].type == DIFFERENCE)) {
         Node* operation = new Node(tokens[index].value);
-        index++; // consume operation
-
+        index++;
         Node* right = parsePrimary(index);
-
         operation->left = left;
         operation->right = right;
         left = operation;  // the current operation becomes the new left operand for the next loop iteration
