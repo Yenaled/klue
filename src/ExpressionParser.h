@@ -9,6 +9,7 @@ enum TokenType {
     VALUE,
     UNION,
     INTERSECT,
+    DIFFERENCE,
     OPEN_PAR,
     CLOSE_PAR
 };
