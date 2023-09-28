@@ -39,6 +39,7 @@ struct ProgramOptions {
   std::string distinguish_output_fasta;
   std::string input_fasta_contig;
   std::string map_file;
+  std::string input_set_operations;
   int k;
   int g;
   int min_found_colors;
