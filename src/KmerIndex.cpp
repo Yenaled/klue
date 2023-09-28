@@ -393,7 +393,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
   int range_discard = 0;
   int num_written = 0;
   // TEST set expressions
-  std::string input_str = "(AUB)IC AU(BIC) (AIB)UC AI(BUC) AIBIC"; // LATER retrieve from main.cpp
+  std::string input_str = opt.input_set_operations; // example: "(AUB)IC AU(BIC) (AIB)UC AI(BUC) AIBIC";
   bool perform_set_operations = false;
   auto expressions = split(input_str, ' ');
   std::map<std::string, int> expr_to_int;
