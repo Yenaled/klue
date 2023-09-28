@@ -122,7 +122,7 @@ std::set<int> computeSetOperation(const Node* root, const std::map<int, std::set
     // Return an empty set for a null node
     if (!root) return {};
     // If the node is a leaf node (neither 'U' nor 'I')
-    if (root->value != 'U' && root->value != 'I') {
+    if (root->value != 'U' && root->value != 'I' && root->value != '\\') {
         auto it = k_map.find(root->value - 'A'); // 'A' maps to 0, 'B' to 1, etc.
         return (it != k_map.end()) ? it->second : std::set<int>{};
     }
@@ -135,6 +135,9 @@ std::set<int> computeSetOperation(const Node* root, const std::map<int, std::set
     }
     else if (root->value == 'I') {
         std::set_intersection(leftSet.begin(), leftSet.end(), rightSet.begin(), rightSet.end(), std::inserter(result, result.end()));
+    }
+    else if (root->value == '\\') {
+      std::set_difference(leftSet.begin(), leftSet.end(), rightSet.begin(), rightSet.end(), std::inserter(result, result.end()));
     }
     return result;
 }
