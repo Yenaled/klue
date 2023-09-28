@@ -64,7 +64,7 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
   int distinguish_all_but_one_flag = 0;
   int distinguish_combinations_flag = 0;
   int extension_flag = 0;
-  const char *opt_string = "o:k:m:t:r:M:g:p";
+  const char *opt_string = "o:k:m:t:r:M:g:ps:";
   static struct option long_options[] = {
     // long args
     {"verbose", no_argument, &verbose_flag, 1},
@@ -81,6 +81,7 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
     {"map-file", required_argument, 0, 'g'},
     {"threads", required_argument, 0, 't'},
     {"range", required_argument, 0, 'r'},
+    {"set", required_argument, 0, 's'},
     {0,0,0,0}
   };
   int c;
@@ -109,6 +110,10 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
     }
     case 'g': {
       opt.map_file = optarg;
+      break;
+    }
+    case 's': {
+      opt.input_set_operations = optarg;
       break;
     }
     case 'm': {
