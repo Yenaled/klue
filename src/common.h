@@ -62,7 +62,6 @@ ProgramOptions() :
   distinguish_all_but_one_color(false),
   distinguish_union(false),
   distinguish_combinations(false),
-  extend(false),
   distinguish_range_begin(0),
   distinguish_range_end(0),
   min_found_colors(-1)
