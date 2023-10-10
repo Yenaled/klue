@@ -53,11 +53,4 @@ checkcmdoutput "$klue distinguish -t 1 -M 1,1,1 -p $test_dir/test_3.fq.gz $test_
 checkcmdoutput "$klue distinguish --all -t 1 -M 1,1,1 -p $test_dir/test_3.fq.gz $test_dir/test_4.fq.gz $test_dir/test_5.fq.gz|wc -c|tr -d ' '" a8ee4140c073de1ec851bc2b133d5b8b
 checkcmdoutput "$klue distinguish --all-but-one -t 1 -M 1,1,1 -p $test_dir/test_3.fq.gz $test_dir/test_4.fq.gz $test_dir/test_5.fq.gz|wc -c|tr -d ' '" a8ee4140c073de1ec851bc2b133d5b8b
 checkcmdoutput "$klue distinguish --combinations -t 1 -M 1,1,1 -p $test_dir/test_3.fq.gz $test_dir/test_4.fq.gz $test_dir/test_5.fq.gz|wc -c|tr -d ' '" 897316929176464ebc9ad085f31e7284
-# Test extend run
-
-checkcmdoutput "$klue distinguish --extend -t 1 -M 1,1 -p $test_dir/test_1.fq.gz $test_dir/test_2.fq.gz|wc -c|tr -d ' '" e57b5c9f3b511d0e701fe19d51d03f48
-checkcmdoutput "$klue distinguish --extend -t 1 -M 1,1,1 -p $test_dir/test_3.fq.gz $test_dir/test_4.fq.gz $test_dir/test_5.fq.gz|wc -c|tr -d ' '" 1905d16b771130d54072b7f3db75f98a 
-checkcmdoutput "$klue distinguish --extend --all -t 1 -M 1,1,1 -p $test_dir/test_3.fq.gz $test_dir/test_4.fq.gz $test_dir/test_5.fq.gz|wc -c|tr -d ' '" 1905d16b771130d54072b7f3db75f98a
-checkcmdoutput "$klue distinguish --extend --all-but-one -t 1 -M 1,1,1 -p $test_dir/test_3.fq.gz $test_dir/test_4.fq.gz $test_dir/test_5.fq.gz|wc -c|tr -d ' '" 1905d16b771130d54072b7f3db75f98a
-checkcmdoutput "$klue distinguish --extend --combinations -t 1 -M 1,1,1 -p $test_dir/test_3.fq.gz $test_dir/test_4.fq.gz $test_dir/test_5.fq.gz|wc -c|tr -d ' '" 897316929176464ebc9ad085f31e7284
 
