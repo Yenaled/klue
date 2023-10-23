@@ -13,6 +13,7 @@
 #include <ExpressionParser.h>
 #include <iomanip>
 #include <queue>
+#include <algorithm>
 
 // other helper functions
 // pre: u is sorted
@@ -64,6 +65,132 @@ std::string generate_tmp_file(std::string seed) {
         tmp_file += base.substr(pos, 1);
     }
     return tmp_file;
+}
+
+// Perform DFS traversal starting from unitig head until no neighbors are found or cycle completed
+/*
+std::string forwardDFS(ColoredCDBG<void>& ccdbg, UnitigMap<DataAccessor<void>, DataStorage<void>>& um, int k, int depth, int MAX_DEPTH, std::unordered_set<std::string>& visited) {
+    std::string assembledSequence = "";
+
+    std::string currentTail = um.getUnitigTail().toString();
+
+    if (depth > MAX_DEPTH || um.isEmpty || visited.find(currentTail) != visited.end()) { return ""; }
+
+    visited.insert(currentTail);
+
+    std::vector<int> colors;
+    UnitigColors::const_iterator it_uc_ = um.getData()->getUnitigColors(um)->begin(um);
+    for (; it_uc_ != um.getData()->getUnitigColors(um)->end(); ++it_uc_) { colors.push_back(it_uc_.getColorID()); }
+
+    for (const auto& c : colors) {
+        for (char nextChar : "ACGT") {
+            std::string next_kmer = currentTail.substr(1, k - 1) + nextChar;
+            Kmer neighbor(next_kmer.c_str());
+            UnitigMap<DataAccessor<void>, DataStorage<void>> neighbor_um = ccdbg.find(neighbor, false);
+
+            if (!neighbor_um.isEmpty && std::find(visited.begin(), visited.end(), neighbor_um.getUnitigKmer(neighbor_um.dist).toString()) == visited.end()) {
+                std::vector<int> neighbor_colors;
+                UnitigColors::const_iterator neighbor_it_uc_ = neighbor_um.getData()->getUnitigColors(neighbor_um)->begin(neighbor_um);
+                for (; neighbor_it_uc_ != neighbor_um.getData()->getUnitigColors(neighbor_um)->end(); ++neighbor_it_uc_) { neighbor_colors.push_back(neighbor_it_uc_.getColorID()); }
+                if (std::find(neighbor_colors.begin(), neighbor_colors.end(), c) != neighbor_colors.end() &&
+                    currentTail.substr(1, k - 1) == neighbor_um.getUnitigHead().toString().substr(0, k - 1)) {
+                    visited.insert(neighbor_um.getUnitigTail().toString()); // Keep track of visited kmer strings
+                    assembledSequence += forwardDFS(ccdbg, neighbor_um, k, depth + 1, MAX_DEPTH, visited);
+                }
+            }
+        }
+    }
+
+    return assembledSequence;
+}
+*/
+
+// Perform DFS traversal starting from unitig head until no neighbors are found or cycle completed
+std::string forwardDFS(ColoredCDBG<void>& ccdbg, UnitigMap<DataAccessor<void>, DataStorage<void>>& um, int k, std::unordered_set<std::string>& visited) {
+    std::string assembledSequence = "";
+    std::string currentTail = um.getUnitigTail().toString();
+    visited.insert(currentTail);
+
+    std::vector<int> colors;
+    UnitigColors::const_iterator it_uc_ = um.getData()->getUnitigColors(um)->begin(um);
+    for (; it_uc_ != um.getData()->getUnitigColors(um)->end(); ++it_uc_) { colors.push_back(it_uc_.getColorID()); }
+
+    for (const auto& c : colors) {
+        for (char nextChar : "ACGT") {
+            std::string next_kmer = currentTail.substr(1, k - 1) + nextChar;
+            Kmer neighbor(next_kmer.c_str());
+            UnitigMap<DataAccessor<void>, DataStorage<void>> neighbor_um = ccdbg.find(neighbor, false);
+
+            if (!neighbor_um.isEmpty && std::find(visited.begin(), visited.end(), neighbor_um.getUnitigKmer(neighbor_um.dist).toString()) == visited.end()) {
+                std::vector<int> neighbor_colors;
+                UnitigColors::const_iterator neighbor_it_uc_ = neighbor_um.getData()->getUnitigColors(neighbor_um)->begin(neighbor_um);
+                for (; neighbor_it_uc_ != neighbor_um.getData()->getUnitigColors(neighbor_um)->end(); ++neighbor_it_uc_) { neighbor_colors.push_back(neighbor_it_uc_.getColorID()); }
+                if (std::find(neighbor_colors.begin(), neighbor_colors.end(), c) != neighbor_colors.end() &&
+                    currentTail.substr(1, k - 1) == neighbor_um.getUnitigHead().toString().substr(0, k - 1)) {
+                    visited.insert(neighbor_um.getUnitigHead().toString()); // Keep track of visited kmer strings or tail?
+                    assembledSequence += forwardDFS(ccdbg, neighbor_um, k, visited);
+                }
+            }
+        }
+    }
+    return assembledSequence;
+}
+
+// Updated forward DFS (void)
+/*
+void extendUnitig(const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& current, const int& current_color, std::string current_str, const std::unordered_set<int>& superset_colors, const int& k, std::unordered_set<std::string>& visited) {
+    if (visited.find(current.getUnitigHead().rep().toString()) != visited.end()) { return; }
+    visited.insert(current.getUnitigHead().rep().toString());
+
+    bool hasValidSuccessor = false; 
+    for (const auto& next : current.getSuccessors()) {
+        UnitigColors::const_iterator it_next = next.getData()->getUnitigColors(next)->begin(next);
+        UnitigColors::const_iterator it_next_end = next.getData()->getUnitigColors(next)->end();
+        std::unordered_set<int> colors;
+        for (; it_next != it_next_end; ++it_next) { colors.insert(it_next.getColorID()); }
+        for (const auto& cc : colors) {
+            if (std::find(superset_colors.begin(), superset_colors.end(), cc) != superset_colors.end() && cc == current_color && next.strand == current.strand) {
+                hasValidSuccessor = true;
+                std::string output;
+                if (next.getUnitigKmer(next.dist).rep() == next.getUnitigKmer(next.dist).twin()) { output = next.getUnitigKmer(next.dist).rep().toString(); }
+                else { output = next.getUnitigKmer(next.dist).twin().toString(); }
+                if (next.getUnitigHead().rep().toString().substr(0, k - next.len) != current.getUnitigTail().toString().substr(current.getUnitigTail().toString().size() - k)) { output = next.getUnitigKmer(next.dist).toString(); }
+                std::string extended_str = current_str + output.substr(output.length() - next.len);
+                extendUnitig(next, current_color, extended_str, superset_colors, k, visited);
+            }
+        }
+    }
+    if (!hasValidSuccessor) { std::cout << "extended unitig: " << current_str << "\n"; } // at leaf node
+}
+*/
+
+// Updated forward DFS (string)
+// Perform DFS traversal starting from unitig tail
+std::string extendUnitig(const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& current, const int& current_color, std::string current_str, const std::unordered_set<int>& superset_colors, const int& k, std::unordered_set<std::string>& visited) {
+    if (visited.find(current.getUnitigHead().rep().toString()) != visited.end()) { return "";  }
+    visited.insert(current.getUnitigHead().rep().toString());
+
+    std::string result = "";
+    bool hasValidSuccessor = false;
+    for (const auto& next : current.getSuccessors()) {
+        UnitigColors::const_iterator it_next = next.getData()->getUnitigColors(next)->begin(next);
+        UnitigColors::const_iterator it_next_end = next.getData()->getUnitigColors(next)->end();
+        std::unordered_set<int> colors;
+        for (; it_next != it_next_end; ++it_next) { colors.insert(it_next.getColorID()); }
+        for (const auto& cc : colors) {
+            if (std::find(superset_colors.begin(), superset_colors.end(), cc) != superset_colors.end() && cc == current_color && next.strand == current.strand) {
+                hasValidSuccessor = true;
+                std::string output;
+                if (next.getUnitigKmer(next.dist).rep() == next.getUnitigKmer(next.dist).twin()) { output = next.getUnitigKmer(next.dist).rep().toString(); }
+                else { output = next.getUnitigKmer(next.dist).twin().toString(); }
+                if (next.getUnitigHead().rep().toString().substr(0, k - next.len) != current.getUnitigTail().toString().substr(current.getUnitigTail().toString().size() - k)) { output = next.getUnitigKmer(next.dist).toString(); }
+                std::string extended_str = current_str + output.substr(output.length() - next.len);
+                result += extendUnitig(next, current_color, extended_str, superset_colors, k, visited);
+            }
+        }
+    }
+    if (!hasValidSuccessor) { result += current_str + " "; } // at leaf node
+    return result;
 }
 
 // Begin set operations
@@ -428,12 +555,67 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                             UnitigColors::const_iterator it_uc = uc->begin(unitig);
                             UnitigColors::const_iterator it_uc_end = uc->end();
                             std::map<int, std::set<int>> k_map; // key = color; value = list of positions (i.e. k-mers) along the current unitig (note: a k-mer is a position along a unitig)
+                            std::unordered_set<int> superset_colors;
                             for (; it_uc != it_uc_end; ++it_uc) {
+                                superset_colors.insert(it_uc.getColorID());
                                 int color = color_map[it_uc.getColorID()];
                                 k_map[color].insert(it_uc.getKmerPosition());
                                 // DEBUG:
                                 // std::cout << color << " " << unitig.getUnitigKmer(it_uc.getKmerPosition()).rep().toString() << " " << unitig.getUnitigKmer(it_uc.getKmerPosition()).toString() << " " << it_uc.getKmerPosition() << " " << unitig.strand << std::endl;
                             }
+                            // begin extend 
+                            if (opt.extend) {
+                                std::unordered_set<std::string> visited;
+                                k_map.clear();
+                                for (const auto& c : superset_colors) {
+                                    // extendUnitig(unitig, c, unitig.getUnitigTail().toString(), superset_colors, k, visited); // void
+                                    std::string result = extendUnitig(unitig, c, unitig.getUnitigTail().toString(), superset_colors, k, visited);
+                                    if (!result.empty()) {
+                                        for (const auto& s : split(result, ' ')) {
+                                            // [DEBUG] print extended contigs (all)
+                                            // std::cout << ">" << c << "\n" << s << "\n";
+                                            for (auto iter = s.begin(); iter != s.end(); ++iter) {
+                                                int pos = std::distance(s.begin(), iter);
+                                                k_map[c].insert(pos);
+                                            }
+                                        }
+                                    }
+                                }
+                                // distinguish (default : find k-mer positions exlusive to each color)
+                                /*
+                                std::string default_str = stringOpt(tmp_files.size(), "default"); // for n=8, generate "A\(AIBI...IH) B\(AIBI...IH) ... H\(AIBI...IH)"
+                                auto all_expr = split(default_str, ' ');
+                                for (const auto& expr : all_expr) {
+                                    ExpressionParser expr_parser(expr);
+                                    Node* root = expr_parser.parse();
+                                    std::set<int> set_operation_result = computeSetOperation(root, k_map); // set of positions to keep
+                                    // write out what remains among the contigs
+                                    for (const auto& k_elem : k_map) {
+                                        int curr_pos = -1;
+                                        auto color = expr[0] - 'A'; // A=0, B=1, C=2, ..., H=7
+                                        std::string colored_contig = "";
+                                        for (const auto& pos : k_elem.second) {
+                                            if (set_operation_result.count(pos)) {
+                                                std::string km = unitig.getUnitigKmer(pos).toString();
+                                                if (curr_pos == -1) { colored_contig = km; }
+                                                else if (pos == curr_pos + 1) { colored_contig += km[km.length() - 1]; }
+                                                else {
+                                                    if (colored_contig.length() >= rb && colored_contig.length() <= re && k_elem.first == color) { oss << ">" << std::to_string(color) << "\n" << colored_contig << "\n"; _num_written++; }
+                                                    else _range_discard++;
+                                                    colored_contig = km;
+                                                }
+                                                curr_pos = pos;
+                                            }
+                                        }
+                                        if (colored_contig != "") {
+                                            if (colored_contig.length() >= rb && colored_contig.length() <= re && k_elem.first == color) { oss << ">" << std::to_string(color) << "\n" << colored_contig << "\n"; _num_written++; }
+                                            else _range_discard++;
+                                        }
+                                    }
+                                }
+                                */
+                            }
+                            // end extend
                             std::set<int> positions_to_remove; // Positions (i.e. k-mers) along the current unitig that will be cut out
                             std::map<std::vector<int>, int> result_map; // Key = colors; Value = Position (i.e. k-mer)
                             std::stringstream ss; // For --combinations outputting aggregated colors
@@ -578,6 +760,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                     }
                                 }
                             } // end if !opt.distinguish_union
+                            
                             // Now, write out what remains among the contigs
                             for (const auto& k_elem : k_map) {
                                 int curr_pos = -1;
