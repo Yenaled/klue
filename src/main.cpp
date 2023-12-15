@@ -678,6 +678,7 @@ void usageDistinguish() {
        << "-g, --map-file=STRING       Filename for mapping output FASTA headers to file names" << endl
        << "-t, --threads=INT           Number of threads to use (default: 1)" << endl
        << "-m, --min-size=INT          Length of minimizers (default: automatically chosen)" << endl
+       << "-T, --tmp=STRING            Directory for temporary files" << endl
        << endl;
 
 }
@@ -697,6 +698,7 @@ void usageRefineUnitigs() {
        << "    --all-but-one           Set the mode to be extracting all sequences except those found across all inputs" << endl
        << "-t, --threads=INT           Number of threads to use (default: 1)" << endl
        << "-m, --min-size=INT          Length of minimizers (default: automatically chosen)" << endl
+       << "-T, --tmp=STRING            Directory for temporary files" << endl
        << endl;
   
 }
@@ -715,6 +717,7 @@ void usageRefine() {
        << "-r, --range=INT-INT         Set the range of of length of output sequences (format: begin-end)" << endl
        << "-t, --threads=INT           Number of threads to use (default: 1)" << endl
        << "-m, --min=INT               Minimum number of files contig must be found in (default: number of FASTA-files)" << endl
+       << "-T, --tmp=STRING            Directory for temporary files" << endl
        << endl;
   
 }
