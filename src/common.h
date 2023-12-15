@@ -40,6 +40,7 @@ struct ProgramOptions {
   std::string input_fasta_contig;
   std::string map_file;
   std::string input_set_operations;
+  std::string tmp_dir;
   int k;
   int g;
   int min_found_colors;
@@ -66,7 +67,8 @@ ProgramOptions() :
   extend(false),
   distinguish_range_begin(0),
   distinguish_range_end(0),
-  min_found_colors(-1)
+  min_found_colors(-1),
+  tmp_dir("tmp")
   {}
 };
 

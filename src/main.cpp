@@ -64,7 +64,7 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
   int distinguish_all_but_one_flag = 0;
   int distinguish_combinations_flag = 0;
   int extension_flag = 0;
-  const char *opt_string = "o:k:m:t:r:M:g:ps:";
+  const char *opt_string = "o:k:m:t:r:M:g:ps:T:";
   static struct option long_options[] = {
     // long args
     {"verbose", no_argument, &verbose_flag, 1},
@@ -80,6 +80,7 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
     {"min-size", required_argument, 0, 'm'},
     {"map-file", required_argument, 0, 'g'},
     {"threads", required_argument, 0, 't'},
+    {"tmp", required_argument, 0, 'T'},
     {"range", required_argument, 0, 'r'},
     {"set", required_argument, 0, 's'},
     {0,0,0,0}
@@ -133,6 +134,10 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
     }
     case 't': {
       stringstream(optarg) >> opt.threads;
+      break;
+    }
+    case 'T': {
+      stringstream(optarg) >> opt.tmp_dir;
       break;
     }
     case 'r': {
@@ -191,7 +196,7 @@ void ParseOptionsRefineUnitigs(int argc, char **argv, ProgramOptions& opt) {
   int pipe_flag = 0;
   int distinguish_all_flag = 0;
   int distinguish_all_but_one_flag = 0;
-  const char *opt_string = "o:k:m:t:r:p";
+  const char *opt_string = "o:k:m:t:r:pT:";
   static struct option long_options[] = {
     // long args
     {"verbose", no_argument, &verbose_flag, 1},
@@ -203,6 +208,7 @@ void ParseOptionsRefineUnitigs(int argc, char **argv, ProgramOptions& opt) {
     {"kmer-size", required_argument, 0, 'k'},
     {"min-size", required_argument, 0, 'm'},
     {"threads", required_argument, 0, 't'},
+    {"tmp", required_argument, 0, 'T'},
     {"range", required_argument, 0, 'r'},
     {0,0,0,0}
   };
@@ -236,6 +242,10 @@ void ParseOptionsRefineUnitigs(int argc, char **argv, ProgramOptions& opt) {
     }
     case 't': {
       stringstream(optarg) >> opt.threads;
+      break;
+    }
+    case 'T': {
+      stringstream(optarg) >> opt.tmp_dir;
       break;
     }
     case 'r': {
@@ -283,7 +293,7 @@ void ParseOptionsRefine(int argc, char **argv, ProgramOptions& opt) {
   int verbose_flag = 0;
   int pipe_flag = 0;
   opt.k = 29; // New default for k-mer size
-  const char *opt_string = "o:i:I:t:r:m:k:p";
+  const char *opt_string = "o:i:I:t:r:m:k:pT:";
   static struct option long_options[] = {
     // long args
     {"verbose", no_argument, &verbose_flag, 1},
@@ -293,6 +303,7 @@ void ParseOptionsRefine(int argc, char **argv, ProgramOptions& opt) {
     {"input", required_argument, 0, 'i'},
     {"inner", required_argument, 0, 'I'},
     {"threads", required_argument, 0, 't'},
+    {"tmp", required_argument, 0, 'T'},
     {"range", required_argument, 0, 'r'},
     {"min", required_argument, 0, 'm'},
     {"kmer-size", required_argument, 0, 'k'},
@@ -343,6 +354,10 @@ void ParseOptionsRefine(int argc, char **argv, ProgramOptions& opt) {
     }
     case 't': {
       stringstream(optarg) >> opt.threads;
+      break;
+    }
+    case 'T': {
+      stringstream(optarg) >> opt.tmp_dir;
       break;
     }
     case 'r': {
@@ -810,7 +825,7 @@ int main(int argc, char *argv[]) {
       usage();
       exit(1);
     }
-
+    rmdir(opt.tmp_dir.c_str()); // Remove temp directory if non-empty
   }
 
   fflush(stdout);

@@ -55,16 +55,39 @@ int hamming(const char* a, const char* b) {
     return h;
 }
 
-std::string generate_tmp_file(std::string seed) {
+int my_mkdir_kmer_index(const char *path, mode_t mode) {
+#ifdef _WIN64
+  return mkdir(path);
+#else
+  return mkdir(path,mode);
+#endif
+}
+
+std::string generate_tmp_file(std::string seed, std::string tmp_dir) {
+    struct stat stFileInfo;
+    auto intStat = stat(tmp_dir.c_str(), &stFileInfo);
+    if (intStat == 0) {
+      // file/dir exits
+      if (!S_ISDIR(stFileInfo.st_mode)) {
+        cerr << "Error: file " << tmp_dir << " exists and is not a directory" << endl;
+        exit(1);
+      }
+    } else {
+      // create directory
+      if (my_mkdir_kmer_index(tmp_dir.c_str(), 0777) == -1) {
+        cerr << "Error: could not create directory " << tmp_dir << endl;
+        exit(1);
+      }
+    }
     std::string base = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    std::string tmp_file = ".klue.";
+    std::string tmp_file = "klue.";
     srand((unsigned int)std::hash<std::string>{}(seed));
     int pos;
     while (tmp_file.length() < 32) {
         pos = ((rand() % (base.size() - 1)));
         tmp_file += base.substr(pos, 1);
     }
-    return tmp_file;
+    return tmp_dir + "/" + tmp_file;
 }
 
 // Perform DFS traversal starting from unitig head until no neighbors are found or cycle completed
@@ -301,7 +324,7 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
                 ofs.resize(color + 1);
                 for (int i = 0; i < tmp_files.size(); i++) {
                     if (tmp_files[i].empty()) {
-                        tmp_files[i] = generate_tmp_file(opt.distinguish_output_fasta + fasta + std::to_string(i));
+                        tmp_files[i] = generate_tmp_file(opt.distinguish_output_fasta + fasta + std::to_string(i), opt.tmp_dir);
                         ofs[i] = new std::ofstream(tmp_files[i]); // Store pointers to circumvent certain compiler bugs where ofstream is non-movable
                     }
                 }
@@ -341,7 +364,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
         for (auto& fasta : transfasta) {
             std::cerr << "[build] loading fasta file " << fasta
                 << std::endl;
-            tmp_files.push_back(generate_tmp_file(opt.distinguish_output_fasta + fasta));
+            tmp_files.push_back(generate_tmp_file(opt.distinguish_output_fasta + fasta, opt.tmp_dir));
         }
         std::vector<std::ofstream*> ofs; // Store pointers to circumvent certain compiler bugs where ofstream is non-movable
         for (auto tmp_file : tmp_files) ofs.push_back(new std::ofstream(tmp_file));
