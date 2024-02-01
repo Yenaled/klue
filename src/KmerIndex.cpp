@@ -90,110 +90,12 @@ std::string generate_tmp_file(std::string seed, std::string tmp_dir) {
     return tmp_dir + "/" + tmp_file;
 }
 
-// Perform DFS traversal starting from unitig head until no neighbors are found or cycle completed
-/*
-std::string forwardDFS(ColoredCDBG<void>& ccdbg, UnitigMap<DataAccessor<void>, DataStorage<void>>& um, int k, int depth, int MAX_DEPTH, std::unordered_set<std::string>& visited) {
-    std::string assembledSequence = "";
-
-    std::string currentTail = um.getUnitigTail().toString();
-
-    if (depth > MAX_DEPTH || um.isEmpty || visited.find(currentTail) != visited.end()) { return ""; }
-
-    visited.insert(currentTail);
-
-    std::vector<int> colors;
-    UnitigColors::const_iterator it_uc_ = um.getData()->getUnitigColors(um)->begin(um);
-    for (; it_uc_ != um.getData()->getUnitigColors(um)->end(); ++it_uc_) { colors.push_back(it_uc_.getColorID()); }
-
-    for (const auto& c : colors) {
-        for (char nextChar : "ACGT") {
-            std::string next_kmer = currentTail.substr(1, k - 1) + nextChar;
-            Kmer neighbor(next_kmer.c_str());
-            UnitigMap<DataAccessor<void>, DataStorage<void>> neighbor_um = ccdbg.find(neighbor, false);
-
-            if (!neighbor_um.isEmpty && std::find(visited.begin(), visited.end(), neighbor_um.getUnitigKmer(neighbor_um.dist).toString()) == visited.end()) {
-                std::vector<int> neighbor_colors;
-                UnitigColors::const_iterator neighbor_it_uc_ = neighbor_um.getData()->getUnitigColors(neighbor_um)->begin(neighbor_um);
-                for (; neighbor_it_uc_ != neighbor_um.getData()->getUnitigColors(neighbor_um)->end(); ++neighbor_it_uc_) { neighbor_colors.push_back(neighbor_it_uc_.getColorID()); }
-                if (std::find(neighbor_colors.begin(), neighbor_colors.end(), c) != neighbor_colors.end() &&
-                    currentTail.substr(1, k - 1) == neighbor_um.getUnitigHead().toString().substr(0, k - 1)) {
-                    visited.insert(neighbor_um.getUnitigTail().toString()); // Keep track of visited kmer strings
-                    assembledSequence += forwardDFS(ccdbg, neighbor_um, k, depth + 1, MAX_DEPTH, visited);
-                }
-            }
-        }
-    }
-
-    return assembledSequence;
-}
-*/
-
-// Perform DFS traversal starting from unitig head until no neighbors are found or cycle completed
-std::string forwardDFS(ColoredCDBG<void>& ccdbg, UnitigMap<DataAccessor<void>, DataStorage<void>>& um, int k, std::unordered_set<std::string>& visited) {
-    std::string assembledSequence = "";
-    std::string currentTail = um.getUnitigTail().toString();
-    visited.insert(currentTail);
-
-    std::vector<int> colors;
-    UnitigColors::const_iterator it_uc_ = um.getData()->getUnitigColors(um)->begin(um);
-    for (; it_uc_ != um.getData()->getUnitigColors(um)->end(); ++it_uc_) { colors.push_back(it_uc_.getColorID()); }
-
-    for (const auto& c : colors) {
-        for (char nextChar : "ACGT") {
-            std::string next_kmer = currentTail.substr(1, k - 1) + nextChar;
-            Kmer neighbor(next_kmer.c_str());
-            UnitigMap<DataAccessor<void>, DataStorage<void>> neighbor_um = ccdbg.find(neighbor, false);
-
-            if (!neighbor_um.isEmpty && std::find(visited.begin(), visited.end(), neighbor_um.getUnitigKmer(neighbor_um.dist).toString()) == visited.end()) {
-                std::vector<int> neighbor_colors;
-                UnitigColors::const_iterator neighbor_it_uc_ = neighbor_um.getData()->getUnitigColors(neighbor_um)->begin(neighbor_um);
-                for (; neighbor_it_uc_ != neighbor_um.getData()->getUnitigColors(neighbor_um)->end(); ++neighbor_it_uc_) { neighbor_colors.push_back(neighbor_it_uc_.getColorID()); }
-                if (std::find(neighbor_colors.begin(), neighbor_colors.end(), c) != neighbor_colors.end() &&
-                    currentTail.substr(1, k - 1) == neighbor_um.getUnitigHead().toString().substr(0, k - 1)) {
-                    visited.insert(neighbor_um.getUnitigHead().toString()); // Keep track of visited kmer strings or tail?
-                    assembledSequence += forwardDFS(ccdbg, neighbor_um, k, visited);
-                }
-            }
-        }
-    }
-    return assembledSequence;
-}
-
-// Updated forward DFS (void)
-/*
-void extendUnitig(const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& current, const int& current_color, std::string current_str, const std::unordered_set<int>& superset_colors, const int& k, std::unordered_set<std::string>& visited) {
-    if (visited.find(current.getUnitigHead().rep().toString()) != visited.end()) { return; }
-    visited.insert(current.getUnitigHead().rep().toString());
-
-    bool hasValidSuccessor = false; 
-    for (const auto& next : current.getSuccessors()) {
-        UnitigColors::const_iterator it_next = next.getData()->getUnitigColors(next)->begin(next);
-        UnitigColors::const_iterator it_next_end = next.getData()->getUnitigColors(next)->end();
-        std::unordered_set<int> colors;
-        for (; it_next != it_next_end; ++it_next) { colors.insert(it_next.getColorID()); }
-        for (const auto& cc : colors) {
-            if (std::find(superset_colors.begin(), superset_colors.end(), cc) != superset_colors.end() && cc == current_color && next.strand == current.strand) {
-                hasValidSuccessor = true;
-                std::string output;
-                if (next.getUnitigKmer(next.dist).rep() == next.getUnitigKmer(next.dist).twin()) { output = next.getUnitigKmer(next.dist).rep().toString(); }
-                else { output = next.getUnitigKmer(next.dist).twin().toString(); }
-                if (next.getUnitigHead().rep().toString().substr(0, k - next.len) != current.getUnitigTail().toString().substr(current.getUnitigTail().toString().size() - k)) { output = next.getUnitigKmer(next.dist).toString(); }
-                std::string extended_str = current_str + output.substr(output.length() - next.len);
-                extendUnitig(next, current_color, extended_str, superset_colors, k, visited);
-            }
-        }
-    }
-    if (!hasValidSuccessor) { std::cout << "extended unitig: " << current_str << "\n"; } // at leaf node
-}
-*/
-
-// Updated forward DFS (string)
 // Perform DFS traversal starting from unitig tail
 std::string extendUnitig(const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& current, const int& current_color, std::string current_str, const std::unordered_set<int>& superset_colors, const int& k, std::unordered_set<std::string>& visited) {
-    if (visited.find(current.getUnitigHead().rep().toString()) != visited.end()) { return "";  }
-    visited.insert(current.getUnitigHead().rep().toString());
+    if (visited.find(current.getUnitigTail().toString()) != visited.end()) { return ""; }
+    visited.insert(current.getUnitigTail().toString());
 
-    std::string result = "";
+    std::string result;
     bool hasValidSuccessor = false;
     for (const auto& next : current.getSuccessors()) {
         UnitigColors::const_iterator it_next = next.getData()->getUnitigColors(next)->begin(next);
@@ -201,14 +103,14 @@ std::string extendUnitig(const UnitigMap<DataAccessor<void>, DataStorage<void>, 
         std::unordered_set<int> colors;
         for (; it_next != it_next_end; ++it_next) { colors.insert(it_next.getColorID()); }
         for (const auto& cc : colors) {
-            if (std::find(superset_colors.begin(), superset_colors.end(), cc) != superset_colors.end() && cc == current_color && next.strand == current.strand) {
+            if (std::find(superset_colors.begin(), superset_colors.end(), cc) != superset_colors.end() && // next unitig color cc is found in set of valid successor colors
+                cc == current_color && // next unitig color matches color of current traversal color
+                next.strand == current.strand) // unitigs aligned in same direction
+            {
                 hasValidSuccessor = true;
-                std::string output;
-                if (next.getUnitigKmer(next.dist).rep() == next.getUnitigKmer(next.dist).twin()) { output = next.getUnitigKmer(next.dist).rep().toString(); }
-                else { output = next.getUnitigKmer(next.dist).twin().toString(); }
-                if (next.getUnitigHead().rep().toString().substr(0, k - next.len) != current.getUnitigTail().toString().substr(current.getUnitigTail().toString().size() - k)) { output = next.getUnitigKmer(next.dist).toString(); }
-                std::string extended_str = current_str + output.substr(output.length() - next.len);
-                result += extendUnitig(next, current_color, extended_str, superset_colors, k, visited);
+                std::string append;
+                for (int i = 0; i < next.len; i++) { append += next.getUnitigKmer(i).toString().back(); }
+                result += extendUnitig(next, current_color, append, superset_colors, k, visited);
             }
         }
     }
