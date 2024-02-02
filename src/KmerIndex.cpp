@@ -171,7 +171,7 @@ void detectBubbles(const UnitigMap<DataAccessor<void>, DataStorage<void>, false>
     }
 }
 
-// global mutex to write to separate files
+// global mutex to write to separate files -- bad practice?
 // FIX consider wrapping in class
 std::mutex mutex_bubble, mutex_superbubble, mutex_sequence;
 
@@ -574,9 +574,10 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                             }
                             // end extend
                             // begin bubble
-                            // if (opt.bubble) 
-                            std::unordered_set<std::string> visited;
-                            detectBubbles(unitig, bubble_stream, superbubble_stream, sequence_stream, visited, superset_colors, k);
+                            if (opt.bubble) {
+                                std::unordered_set<std::string> visited;
+                                detectBubbles(unitig, bubble_stream, superbubble_stream, sequence_stream, visited, superset_colors, k);
+                            }
                             // continue default processing
                             // end bubble
                             std::set<int> positions_to_remove; // Positions (i.e. k-mers) along the current unitig that will be cut out
