@@ -119,7 +119,8 @@ std::string extendUnitig(const UnitigMap<DataAccessor<void>, DataStorage<void>, 
     return result;
 }
 
-void processUnitig(const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& unitig, const std::unordered_set<int>& superset_colors, unordered_map<std::string, std::vector<UnitigMap<DataAccessor<void>, DataStorage<void>, false>>>& paths, int depth, std::ostream& os, std::unordered_set<std::string>& visited) {
+// Process unitig and store in paths if color is found in superset_colors for bubble
+void processUnitig(const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& unitig, const std::unordered_set<int>& superset_colors, unordered_map<std::string, std::vector<UnitigMap<DataAccessor<void>, DataStorage<void>, false>>>& paths, int depth, std::ostringstream& os, std::unordered_set<std::string>& visited) {
     const UnitigColors* colors = unitig.getData()->getUnitigColors(unitig);
     unordered_set<int> colorIDs;
     for (auto it = colors->begin(unitig), end = colors->end(); it != end; ++it) {
@@ -131,7 +132,8 @@ void processUnitig(const UnitigMap<DataAccessor<void>, DataStorage<void>, false>
     }
 }
 
-void detectBubbles(const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& current, std::ostream& os, std::unordered_set<std::string>& visited, const std::unordered_set<int>& superset_colors, int depth = 0) {
+// Detect bubbles and superbubbles
+void detectBubbles(const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& current, std::ostringstream& bubble, std::ostringstream& superbubble, std::ostringstream& sequence, std::unordered_set<std::string>& visited, const std::unordered_set<int>& superset_colors, int k, int depth = 0) {
     if (visited.find(current.getUnitigHead().toString()) != visited.end()) return;
     visited.insert(current.getUnitigHead().toString());
 
@@ -139,8 +141,6 @@ void detectBubbles(const UnitigMap<DataAccessor<void>, DataStorage<void>, false>
     auto predecessors = current.getPredecessors();
 
     if (successors.begin() == successors.end() && predecessors.begin() == predecessors.end()) return; // Base case: if isolated or end of path
-
-    int k = 31; // FIX: pass this as an argument
     for (const auto& c : superset_colors) {
         // visited.clear(); // Clear visited set for each color to allow for traversal of each color -- DEBUG causes segmentaton dump
         std::string bubble_sequence = extendUnitig(current, c, current.getUnitigTail().toString(), superset_colors, k, visited);
@@ -148,28 +148,32 @@ void detectBubbles(const UnitigMap<DataAccessor<void>, DataStorage<void>, false>
             std::istringstream iss(bubble_sequence);
             std::string output;
             while (iss >> output) {
-                os << ">" << c << "\n" << output << "\n";
+                sequence << ">" << c << "\n" << output << "\n";
             }
         }
     }
     unordered_map<string, vector<UnitigMap<DataAccessor<void>, DataStorage<void>, false>>> path_next;
     unordered_map<string, vector<UnitigMap<DataAccessor<void>, DataStorage<void>, false>>> path_prev;
     // Find potential bubble start and end
-    for (const auto& successor : successors) { processUnitig(successor, superset_colors, path_next, depth, os, visited); }
-    for (const auto& predecessor : predecessors) { processUnitig(predecessor, superset_colors, path_prev, depth, os, visited); }
+    for (const auto& successor : successors) { processUnitig(successor, superset_colors, path_next, depth, bubble, visited); }
+    for (const auto& predecessor : predecessors) { processUnitig(predecessor, superset_colors, path_prev, depth, bubble, visited); }
     // Detect superbubbles and bubbles based on color diversity
     if (!path_next.empty()) {
         for (const auto& path : path_next) {
-            for (const auto& unitig : path.second) { detectBubbles(unitig, os, visited, superset_colors, depth + 1); }
+            for (const auto& unitig : path.second) { detectBubbles(unitig, bubble, superbubble, sequence, visited, superset_colors, depth + 1); }
         }
-        if (path_next.size() > 1) { os << "[SUPERBUBBLE]\n>start\n" << current.getUnitigHead().toString() << "\n"; }
-        else if (path_next.size() == 1) { os << "[BUBBLE]\n>start\n" << current.getUnitigHead().toString() << "\n"; }
+        if (path_next.size() > 1) { superbubble << ">[start]\n" << current.getUnitigHead().toString() << "\n"; }
+        else if (path_next.size() == 1) { bubble << ">[start]\n" << current.getUnitigHead().toString() << "\n"; }
     }
     if (!path_prev.empty() && depth > 1) {
-        if (path_prev.size() > 1) { os << "[SUPERBUBBLE]\n>end\n" << current.getUnitigHead().toString() << "\n"; }
-        else if (path_prev.size() == 1) { os << "[BUBBLE]\n>end\n" << current.getUnitigHead().toString() << "\n";}
+        if (path_prev.size() > 1) { superbubble << ">[end]\n" << current.getUnitigHead().toString() << "\n"; }
+        else if (path_prev.size() == 1) { bubble << ">[end]\n" << current.getUnitigHead().toString() << "\n";}
     }
 }
+
+// global mutex to write to separate files
+// FIX consider wrapping in class
+std::mutex mutex_bubble, mutex_superbubble, mutex_sequence;
 
 // Begin set operations
 // Split user-inputted set operation commands by " "
@@ -514,6 +518,16 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
         for (const auto& pair : expr_to_int) { maxWidth = std::max(maxWidth, static_cast<int>(pair.first.length())); }
         for (const auto& pair : expr_to_int) { std::cout << std::setw(maxWidth + 8) << pair.first << ": " << pair.second << "\n"; }
     }
+    // for bubble
+    std::ofstream bubble_file("bubbles.fa", std::ofstream::out);
+    std::ofstream superbubble_file("superbubbles.fa", std::ofstream::out);
+    std::ofstream sequence_file("sequences.fa", std::ofstream::out);
+    // file validation
+    if (!bubble_file.is_open() || !superbubble_file.is_open() || !sequence_file.is_open()) {
+        std::cerr << "Error opening output files." << std::endl;
+        return; // exit
+    }
+    // continue with default processing
     // TODO: Reconstruct below
     for (const auto& unitig : ccdbg) { // Iterate through all the unitigs in the de bruijn graph
         const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
@@ -525,6 +539,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                 workers.emplace_back(
                     [&, u_i] {
                         std::ostringstream oss;
+                        std::ostringstream bubble_stream, superbubble_stream, sequence_stream; // for bubble
                         int _num_written = 0;
                         int _range_discard = 0;
                         for (auto unitig_x : unitigs_v[u_i]) { // Go through unitigs in the batch labeled u_i
@@ -546,7 +561,6 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                 std::unordered_set<std::string> visited;
                                 k_map.clear();
                                 for (const auto& c : superset_colors) {
-                                    // extendUnitig(unitig, c, unitig.getUnitigTail().toString(), superset_colors, k, visited); // void
                                     std::string result = extendUnitig(unitig, c, unitig.getUnitigTail().toString(), superset_colors, k, visited);
                                     if (!result.empty()) {
                                         for (const auto& s : split(result, ' ')) {
@@ -562,8 +576,8 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                             // begin bubble
                             // if (opt.bubble) 
                             std::unordered_set<std::string> visited;
-                            std::ostream& os = std::cout; // FIX: change to multiple output files -- mutex threads?
-                            detectBubbles(unitig, os, visited, superset_colors);
+                            detectBubbles(unitig, bubble_stream, superbubble_stream, sequence_stream, visited, superset_colors, k);
+                            // continue default processing
                             // end bubble
                             std::set<int> positions_to_remove; // Positions (i.e. k-mers) along the current unitig that will be cut out
                             std::map<std::vector<int>, int> result_map; // Key = colors; Value = Position (i.e. k-mer)
@@ -743,8 +757,24 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                 }
                             }
                         }
-                        std::unique_lock<std::mutex> lock(mutex_unitigs);
-                        o << oss.str();
+                        {
+                            std::unique_lock<std::mutex> lock(mutex_unitigs);
+                            o << oss.str();
+                        }
+                        {
+                            std::unique_lock<std::mutex> lock(mutex_bubble);
+                            bubble_file << bubble_stream.str();
+                        }
+                        {
+                            std::unique_lock<std::mutex> lock(mutex_superbubble);
+                            superbubble_file << superbubble_stream.str();
+                        }
+                        {
+							std::unique_lock<std::mutex> lock(mutex_sequence);
+							sequence_file << sequence_stream.str();
+						}
+                        
+                        
                         num_written += _num_written;
                         range_discard += _range_discard;
                     }
