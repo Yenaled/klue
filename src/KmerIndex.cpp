@@ -171,10 +171,6 @@ void detectBubbles(const UnitigMap<DataAccessor<void>, DataStorage<void>, false>
     }
 }
 
-// global mutex to write to separate files -- bad practice?
-// FIX consider wrapping in class
-std::mutex mutex_bubble, mutex_superbubble, mutex_sequence;
-
 // Begin set operations
 // Split user-inputted set operation commands by " "
 std::vector<std::string> split(const std::string& s, char delimiter) {
@@ -519,6 +515,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
         for (const auto& pair : expr_to_int) { std::cout << std::setw(maxWidth + 8) << pair.first << ": " << pair.second << "\n"; }
     }
     // for bubble
+    std::mutex mutex_bubble, mutex_superbubble, mutex_sequence;
     std::ofstream bubble_file("bubbles.fa", std::ofstream::out);
     std::ofstream superbubble_file("superbubbles.fa", std::ofstream::out);
     std::ofstream sequence_file("sequences.fa", std::ofstream::out);
@@ -649,7 +646,6 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                     continue; // colored contigs already extracted, continue to next iteration
                                 }
                                 else if (!opt.distinguish_union && !opt.distinguish_combinations) { // workflow: opt.distinguish_all_but_one_color (e.g. if we have 8 colors, for each color, output all k-mers except those that are 8-colored)
-                                    // method 1
                                     std::string all_but_one_str = stringOpt(tmp_files.size(), "all-but-one"); // generate "A\(AIBI...IH) B\(AIBI...IH) ... H\(AIBI...IH)"
                                     auto all_expr = split(all_but_one_str, ' ');
                                     for (const auto& expr : all_expr) {
