@@ -158,6 +158,7 @@ void detectBubbles(const UnitigMap<DataAccessor<void>, DataStorage<void>, false>
     for (const auto& successor : successors) { processUnitig(successor, superset_colors, path_next, depth, bubble, visited); }
     for (const auto& predecessor : predecessors) { processUnitig(predecessor, superset_colors, path_prev, depth, bubble, visited); }
     // Detect superbubbles and bubbles based on color diversity
+    // consider also forward/backwards extending the bubble/flanking sequences
     if (!path_next.empty()) {
         for (const auto& path : path_next) {
             for (const auto& unitig : path.second) { detectBubbles(unitig, bubble, superbubble, sequence, visited, superset_colors, depth + 1); }
@@ -186,36 +187,68 @@ std::vector<std::string> split(const std::string& s, char delimiter) {
 // Recursively compute set operations (union and intersection are nodes) that correspond to specific sets (leaves)
 std::set<int> computeSetOperation(const Node* root, const std::map<int, std::set<int>>& k_map) {
     if (!root) { return {}; }
-    if (root->value != 'U' && root->value != 'I' && root->value != '\\') {
+    if (root->value != 'U' && root->value != 'I' && root->value != '\\' && root->value != 'N' && root->value != 'X') {
         auto it = k_map.find(root->value - 'A'); // 'A' maps to 0, 'B' to 1, etc.
         return (it != k_map.end()) ? it->second : std::set<int>{};
+    }
+    // Construct the universal set from all sets in k_map
+    std::set<int> universalSet;
+    for (const auto& pair : k_map) {
+        universalSet.insert(pair.second.begin(), pair.second.end());
     }
     auto leftSet = computeSetOperation(root->left, k_map);
     auto rightSet = computeSetOperation(root->right, k_map);
     std::set<int> result;
-    if (root->value == 'U') {
+    if (root->value == 'U') { // (Logical AND) union of sets A,B. User-inputted as "AUB"
         std::set_union(leftSet.begin(), leftSet.end(), rightSet.begin(), rightSet.end(), std::inserter(result, result.end()));
     }
-    else if (root->value == 'I') {
+    else if (root->value == 'I') { // (Logical OR) intersection of sets A,B. User-inputted as "AIB"
         std::set_intersection(leftSet.begin(), leftSet.end(), rightSet.begin(), rightSet.end(), std::inserter(result, result.end()));
     }
-    else if (root->value == '\\') {
+    else if (root->value == '\\') { // Difference of sets A,B. User-inputted as "A\B"
         std::set_difference(leftSet.begin(), leftSet.end(), rightSet.begin(), rightSet.end(), std::inserter(result, result.end()));
+    }
+    else if (root->value == 'N') { // Not both of sets A,B. User-inputted as "ANB"
+        std::set<int> intersection;
+        std::set_intersection(leftSet.begin(), leftSet.end(), rightSet.begin(), rightSet.end(), std::inserter(intersection, intersection.end()));
+        std::set_difference(universalSet.begin(), universalSet.end(), intersection.begin(), intersection.end(), std::inserter(result, result.end()));
+    }
+    // DEBUG: add logical NOR operator -- the dual of NAND
+    else if (root->value == 'X') { // Exclusive OR of sets A,B. User-inputted as "AXB"
+        std::set<int> tempUnion, tempIntersection, xorResult;
+        std::set_union(leftSet.begin(), leftSet.end(), rightSet.begin(), rightSet.end(), std::inserter(tempUnion, tempUnion.end()));
+        std::set_intersection(leftSet.begin(), leftSet.end(), rightSet.begin(), rightSet.end(), std::inserter(tempIntersection, tempIntersection.end()));
+        std::set_difference(tempUnion.begin(), tempUnion.end(), tempIntersection.begin(), tempIntersection.end(), std::inserter(xorResult, xorResult.end()));
+        return xorResult;
     }
     return result;
 }
-// End set operations
 
 std::string stringOpt(size_t n, std::string option) {
     std::string result;
+    // Skip letters 'I', 'N', 'X', 'U' because they are used in set operations
+    auto skipLetters = [&](char& ch) {
+        if (ch >= 'I') { ch += 1; }
+        if (ch >= 'N') { ch += 1; }
+        if (ch >= 'X') { ch += 1; }
+        if (ch >= 'U') { ch += 1; }
+        };
     if (option == "default") {
         for (size_t i = 0; i < n; ++i) {
-            result += 'A' + i;
+            char currentChar = 'A' + i;
+            skipLetters(currentChar);
+            result += currentChar;
             result += "\\(";
             for (size_t j = 0; j < n; ++j) {
+                char innerChar = 'A' + j;
+                skipLetters(innerChar);
                 if (i != j) {
-                    result += 'A' + j;
-                    if (j != n - 1 && !(i == n - 1 && j == n - 2)) { result += 'U'; }
+                    result += innerChar;
+                    if (j < n - 1) {
+                        if (!(i == n - 1 && j == n - 2)) {
+                            result += 'U';
+                        }
+                    }
                 }
             }
             result += ')';
@@ -224,19 +257,23 @@ std::string stringOpt(size_t n, std::string option) {
     }
     else if (option == "all-but-one") {
         for (size_t i = 0; i < n; ++i) {
-            result += 'A' + i;
+            char currentChar = 'A' + i;
+            skipLetters(currentChar);
+            result += currentChar;
             result += "\\(";
             for (size_t j = 0; j < n; ++j) {
-                result += 'A' + j;
-                if (j != n - 1) { result += 'I'; }
+                char innerChar = 'A' + j;
+                skipLetters(innerChar);
+                result += innerChar;
+                if (j < n - 1) { result += 'I'; }
             }
             result += ')';
             if (i != n - 1) { result += ' '; }
         }
     }
-
     return result;
 }
+// End set operations
 
 void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
     // Read in FASTAs and output each color into a new separate temp file
@@ -521,7 +558,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
     std::ofstream sequence_file("sequences.fa", std::ofstream::out);
     // file validation
     if (!bubble_file.is_open() || !superbubble_file.is_open() || !sequence_file.is_open()) {
-        std::cerr << "Error opening output files." << std::endl;
+        std::cerr << "[WARNING]: Error opening output files." << std::endl;
         return; // exit
     }
     // continue with default processing

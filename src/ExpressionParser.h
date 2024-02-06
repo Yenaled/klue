@@ -4,25 +4,25 @@
 #include <vector>
 #include <string>
 #include <sstream>
+#include <stdexcept>
 
-// Enum for token type
 enum TokenType {
     VALUE,
     UNION,
     INTERSECT,
     DIFFERENCE,
+    NAND,
+    XOR,
     OPEN_PAR,
     CLOSE_PAR
 };
 
-// Token structure
 struct Token {
     TokenType type;
     char value;
     Token(TokenType t, char v) : type(t), value(v) {}
 };
 
-// Node structure for the binary tree
 struct Node {
     char value;
     Node* left;
