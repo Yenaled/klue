@@ -3,8 +3,9 @@
 
 #include <vector>
 #include <string>
+#include <map>
+#include <set>
 #include <sstream>
-#include <stdexcept>
 
 enum TokenType {
     VALUE,
@@ -28,7 +29,8 @@ struct Node {
     Node* left;
     Node* right;
 
-    Node(char v) : value(v), left(nullptr), right(nullptr) {}
+    Node(char v);
+    ~Node();
 };
 
 class ExpressionParser {
@@ -40,9 +42,13 @@ public:
 private:
     std::string input;
     std::vector<Token> tokens;
+    size_t currentIndex;
 
-    Node* parsePrimary(size_t& index);
-    Node* parseExpression(size_t& index);
+    Node* parseExpression();
+    Node* parseUnionIntersection();
+    Node* parseDifferenceNandXor();
+    Node* parsePrimary();
+    Node* createNodeForToken(const Token& token, Node* left, Node* right);
 };
 
 #endif // EXPRESSION_PARSER_H

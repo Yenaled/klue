@@ -543,7 +543,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
     auto expressions = split(input_str, ' ');
     std::map<std::string, int> expr_to_int;
     if (!input_str.empty()) {
-        perform_set_operations = true;
+        perform_set_operations = true;        
         ExpressionParser parser(input_str);  // create parser instance
         auto tokens = parser.tokenize(input_str);
         for (int i = 0; i < expressions.size(); ++i) { expr_to_int[expressions[i]] = i; }
