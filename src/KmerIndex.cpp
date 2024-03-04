@@ -92,31 +92,110 @@ std::string generate_tmp_file(std::string seed, std::string tmp_dir) {
 }
 
 // Perform DFS traversal starting from unitig tail
-std::string extendUnitig(const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& current, const int& current_color, std::string current_str, const std::unordered_set<int>& superset_colors, const int& k, std::unordered_set<std::string>& visited) {
-    if (visited.find(current.getUnitigTail().toString()) != visited.end()) { return ""; }
-    visited.insert(current.getUnitigTail().toString());
-
+/*
+std::string extendUnitig(const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& current,
+    std::unordered_set<std::string>& visited,
+    const int& color,
+    std::string current_str,
+    const std::unordered_set<int>& superset_colors,
+    const int& k) {
+   
     std::string result;
     bool hasValidSuccessor = false;
-    for (const auto& next : current.getSuccessors()) {
-        UnitigColors::const_iterator it_next = next.getData()->getUnitigColors(next)->begin(next);
-        UnitigColors::const_iterator it_next_end = next.getData()->getUnitigColors(next)->end();
-        std::unordered_set<int> colors;
-        for (; it_next != it_next_end; ++it_next) { colors.insert(it_next.getColorID()); }
-        for (const auto& cc : colors) {
-            if (std::find(superset_colors.begin(), superset_colors.end(), cc) != superset_colors.end() && // next unitig color cc is found in set of valid successor colors
-                cc == current_color && // next unitig color matches color of current traversal color
-                next.strand == current.strand) // unitigs aligned in same direction
-            {
+
+    std::string colored_unitig = current.getUnitigHead().toString() + std::to_string(color);
+    if (visited.find(colored_unitig) != visited.end() || current.isEmpty) { return result; }
+    visited.insert(colored_unitig);
+
+    auto successors = current.getSuccessors();
+    if (successors.begin() == successors.end()) { return result; } // If there are no successors, mark as reached end
+
+    for (const auto& next : successors) {
+        if (visited.find(next.getUnitigHead().toString() + std::to_string(color)) == visited.end()) {
+            UnitigColors::const_iterator it_next = next.getData()->getUnitigColors(next)->begin(next);
+            UnitigColors::const_iterator it_next_end = next.getData()->getUnitigColors(next)->end();
+            std::unordered_set<int> colors_next;
+            for (; it_next != it_next_end; ++it_next) { colors_next.insert(it_next.getColorID()); }
+            if (colors_next.find(color) != colors_next.end()) { // Check that next unitig color matches current traversal color
                 hasValidSuccessor = true;
-                std::string append;
-                for (int i = 0; i < next.len; i++) { append += next.getUnitigKmer(i).toString().back(); }
-                result += extendUnitig(next, current_color, append, superset_colors, k, visited);
+                std::string str;
+                if (next.strand) {
+                    for (int i = next.dist; i < next.len; ++i) {
+                        str += next.getUnitigKmer(i).toString().substr(k - 1);
+                    }
+                }
+                else {
+                    for (int i = next.dist; i < next.len; ++i) {
+                        str = next.getUnitigKmer(i).twin().toString().substr(k - 1) + str;
+                    }
+                }
+                
+                std::string extend_str = extendUnitig(next, visited, color, str, superset_colors, k);
+                current_str += extend_str;
             }
         }
     }
-    if (!hasValidSuccessor) { result += current_str + " "; } // at leaf node
+    //if (hasValidSuccessor) { result += current_str; } // at leaf node
+    result += current_str;
     return result;
+}
+*/
+
+struct TraversalResult {
+    std::string result;
+    int color;
+};
+
+TraversalResult extendUnitig(const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& current,
+    std::unordered_set<std::string>& visited,
+    const int& color,
+    std::string current_str,
+    const std::unordered_set<int>& superset_colors,
+    const int& k) {
+
+    TraversalResult traversalResult;
+    bool hasValidSuccessor = false;
+
+    std::string colored_unitig = current.getUnitigHead().toString() + std::to_string(color);
+    if (visited.find(colored_unitig) != visited.end() || current.isEmpty) {
+        traversalResult.color = color;
+        return traversalResult;
+    }
+    visited.insert(colored_unitig);
+
+    auto successors = current.getSuccessors();
+    if (successors.begin() == successors.end()) {
+        traversalResult.color = color;
+        return traversalResult;
+    }
+
+    for (const auto& next : successors) {
+        if (visited.find(next.getUnitigHead().toString() + std::to_string(color)) == visited.end()) {
+            UnitigColors::const_iterator it_next = next.getData()->getUnitigColors(next)->begin(next);
+            UnitigColors::const_iterator it_next_end = next.getData()->getUnitigColors(next)->end();
+            std::unordered_set<int> colors_next;
+            for (; it_next != it_next_end; ++it_next) { colors_next.insert(it_next.getColorID()); }
+            if (colors_next.find(color) != colors_next.end()) {
+                hasValidSuccessor = true;
+                std::string str;
+                if (next.strand) {
+                    for (int i = next.dist; i < next.len; ++i) {
+                        str += next.getUnitigKmer(i).toString().substr(k - 1);
+                    }
+                }
+                else {
+                    for (int i = next.dist; i < next.len; ++i) {
+                        str = next.getUnitigKmer(i).twin().toString().substr(k - 1) + str;
+                    }
+                }
+                TraversalResult extendResult = extendUnitig(next, visited, color, str, superset_colors, k);
+                current_str += extendResult.result;
+            }
+        }
+    }
+    traversalResult.result = current_str;
+    traversalResult.color = color;
+    return traversalResult;
 }
 
 struct VariationPath {
@@ -159,6 +238,7 @@ VariationPath exploreVariations(ColoredCDBG<void>& ccdbg,
                     for (int i = next.dist; i < next.len; ++i) { str += next.getUnitigKmer(i).twin().toString().substr(k - 1); }
                     
                 }
+                std::cout << "str: " << str << "\n";
                 pathResult.variations.push_back(str);
                 VariationPath tempResult = exploreVariations(ccdbg, next, terminal_kmer, superset_colors, color, visited, k);
                 pathResult.variations.insert(pathResult.variations.end(), tempResult.variations.begin(), tempResult.variations.end());
@@ -666,19 +746,41 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                             }
                             // begin extend 
                             if (opt.extend) {
+                                int color = *superset_colors.begin();
                                 std::unordered_set<std::string> visited;
-                                k_map.clear();
-                                for (const auto& c : superset_colors) {
-                                    std::string result = extendUnitig(unitig, c, unitig.getUnitigTail().toString(), superset_colors, k, visited);
-                                    if (!result.empty()) {
-                                        for (const auto& s : split(result, ' ')) {
-                                            for (auto iter = s.begin(); iter != s.end(); ++iter) {
-                                                int pos = std::distance(s.begin(), iter);
-                                                k_map[c].insert(pos);
-                                            }
-                                        }
+                                TraversalResult traversal = extendUnitig(unitig, visited, color, "", superset_colors, k);
+                                std::cout << ">" << traversal.color << "\n" << traversal.result << "\n";
+
+                                // add extend info to k_map
+                                int last = 0;
+                                for (const auto& pair : k_map) {
+                                    std::cout << "color: " << pair.first << "\n";
+                                    for (const auto& pos : pair.second) {
+                                        std::cout << "positions: " << pos << "\n";
+                                        last = pos;
                                     }
                                 }
+                                if (!traversal.result.empty()) {
+                                    std::cout << "traversal result: " << traversal.result << "\n";
+                                }
+                                /*
+                                if (!traversal.result.empty()) {
+                                    for (int i = last; i <= traversal.result.length() - k + last; ++i) {
+										k_map[traversal.color].insert(i);
+									}
+                                }
+                                */
+                                
+                                /*
+                                k_map.clear();
+                                std::cout << "end extend\n";
+                                // repopulate k_map with results from extendUnitig
+                                if (traversal.result.length() >= k) {
+                                    for (size_t i = 0; i <= traversal.result.length() - k; ++i) {
+                                        k_map[traversal.color].insert(i);
+                                    }
+                                }
+                                */
                             }
                             // end extend
                             // begin bubble
