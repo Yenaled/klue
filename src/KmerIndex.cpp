@@ -14,7 +14,6 @@
 #include <iomanip>
 #include <queue>
 #include <algorithm>
-#include <cstdio>
 
 // other helper functions
 // pre: u is sorted
@@ -152,16 +151,17 @@ VariationPath exploreVariations(ColoredCDBG<void>& ccdbg,
             std::unordered_set<int> colors_next;
             for (; it_next != it_next_end; ++it_next) { colors_next.insert(it_next.getColorID()); }
             if (colors_next.find(color) != colors_next.end()) { // check that next unitig color matches current traversal color                
+                std::string str;
                 if (next.strand) {
-                    // will have to change this later (only snp detection right now). get entire unitig string from head-> tail then get last (?) character(s)
-                    pathResult.variations.push_back(next.getUnitigHead().toString().substr(k - 1));
+                    for (int i = next.dist; i < next.len; ++i) { str += next.getUnitigKmer(i).toString().substr(k - 1); }
                 }
                 else {
-                    pathResult.variations.push_back(next.getUnitigHead().twin().toString().substr(k - 1));
+                    for (int i = next.dist; i < next.len; ++i) { str += next.getUnitigKmer(i).twin().toString().substr(k - 1); }
+                    
                 }
+                pathResult.variations.push_back(str);
                 VariationPath tempResult = exploreVariations(ccdbg, next, terminal_kmer, superset_colors, color, visited, k);
                 pathResult.variations.insert(pathResult.variations.end(), tempResult.variations.begin(), tempResult.variations.end());
-
                 if (tempResult.reachedBubbleRight) {
                     pathResult.reachedBubbleRight = true;
                     break;
@@ -180,9 +180,9 @@ struct BubblePath {
 
 BubblePath explorePath(ColoredCDBG<void>& ccdbg,
     const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& current,
-    const std::unordered_set<int>& superset_colors,
-    int color,
     std::unordered_set<std::string>& visited,
+    const std::unordered_set<int>& superset_colors,
+    int color,   
     int k) {
 
     std::string colored_unitig = current.getUnitigHead().toString() + std::to_string(color);
@@ -220,89 +220,26 @@ BubblePath explorePath(ColoredCDBG<void>& ccdbg,
             }
             else {
                 variation += next.getUnitigHead().toString();
-                BubblePath tempResult = explorePath(ccdbg, next, superset_colors, color, visited, k);
-                variation += tempResult.variation;
-                int num = 1; // get first/last character of current unitig (for now)
-                if (!tempResult.variation.empty()) {
-                    // if next unitig matches forward strand, append
-                    if (next.strand) { variation = tempResult.variation.substr(tempResult.variation.length() - num, num); }
-                    else { variation = tempResult.variation.substr(0, num); }
-                    // DEBUG this is wrong
-                   // if (!variation.empty()) { variation_snp << ">" << color << "\n" << variation << "\n"; std::cout << "variation: " << variation << "\n"; }
-                }
+                BubblePath tempResult = explorePath(ccdbg, next, visited, superset_colors, color, k);
                 if (!tempResult.bubble_right.empty() && pathResult.bubble_right.empty()) { pathResult.bubble_right = tempResult.bubble_right; }
                 if (!tempResult.bubble_left.empty() && pathResult.bubble_left.empty()) { pathResult.bubble_left = tempResult.bubble_left; }
-
                 std::unordered_map<std::string, std::string> bubble_map;
                 // if bubble_left and bubble_right are not empty and not the same, valid flanking pair
                 if (!pathResult.bubble_left.empty() && !pathResult.bubble_right.empty() && pathResult.bubble_left != pathResult.bubble_right) {
-                    bubble_map[pathResult.bubble_left] = pathResult.bubble_right;
-                }
-                for (const auto& pair : bubble_map) {
-                    pathResult.bubble_left = pair.first;
-                    pathResult.bubble_right = pair.second;
-                    // find the variation between bubble_left and bubble_right
-                    Kmer bubble_left_kmer(pair.first.c_str());
-                    Kmer bubble_right_kmer(pair.second.c_str());
-                    std::unordered_set<std::string> variation_visited;
-                    // forward traversal from bubble_left_kmer
+                    Kmer bubble_left_kmer(pathResult.bubble_left.c_str());
+                    Kmer bubble_right_kmer(pathResult.bubble_right.c_str());
+                    std::unordered_set<std::string> variation_visited;                    
                     UnitigMap<DataAccessor<void>, DataStorage<void>, false> um_left = ccdbg.find(bubble_left_kmer, false);   // start node (left -> right)
                     UnitigMap<DataAccessor<void>, DataStorage<void>, false> um_right = ccdbg.find(bubble_right_kmer, false); // terminal node
 
+                    // forward traversal from bubble_left_kmer
                     if (!um_left.isEmpty && !um_right.isEmpty) { // valid start and end unitigs found
                         VariationPath varPath = exploreVariations(ccdbg, um_left, um_right, superset_colors, color, variation_visited, k);
                         for (const auto& var : varPath.variations) {
                             pathResult.variation += var;
                         }
                     }
-                    /*
-                    if (!um_left.isEmpty) { // we found the unitig, now traverse the graph to find variation between bubble_left and bubble_right
-                        // add a std::unordered_set<std::string> to keep track of visited unitigs
-                        // ALSO add a condition where recursion stops if we reach bubble_right (will be std::string); if we encounter bubble_left, there is no bubble.
-                        for (const auto& next : um_left.getSuccessors()) {
-                            UnitigColors::const_iterator it_next = next.getData()->getUnitigColors(next)->begin(next);
-                            UnitigColors::const_iterator it_next_end = next.getData()->getUnitigColors(next)->end();
-                            std::unordered_set<int> colors_next;
-                            for (; it_next != it_next_end; ++it_next) { colors_next.insert(it_next.getColorID()); }
-                            if (colors_next.find(color) != colors_next.end()) { // next is a valid successor
-                                if (next.strand == um_left.strand) {
-                                    for (int i = next.dist; i < next.len; ++i) {
-                                        // to append += next.getUnitigKmer(i).toString().substr(k - 1, 1);
-                                        std::cout << "next.getUnitigKmer: " << next.getUnitigKmer(i).toString().substr(k - 1, 1) << "\n";
-                                    }
-                                }
-                                else {
-                                    for (int i = next.dist; i < next.len; ++i) {
-                                        // to append += next.getUnitigKmer(i).twin().toString().substr(k - 1, 1);
-                                        std::cout << "next.getUnitigKmer: " << next.getUnitigKmer(i).twin().toString().substr(k - 1, 1) << "\n";
-                                    }
-                                }
-                            }
-                            for (const auto& n : next.getSuccessors()) {
-                                UnitigColors::const_iterator it_n = n.getData()->getUnitigColors(n)->begin(n);
-                                UnitigColors::const_iterator it_n_end = n.getData()->getUnitigColors(n)->end();
-                                std::unordered_set<int> colors_n;
-                                for (; it_n != it_n_end; ++it_n) { colors_n.insert(it_n.getColorID()); }
-                                if (colors_n.find(color) != colors_n.end()) { // next is a valid successor
-                                    if (n.strand == next.strand) {
-                                        for (int i = n.dist; i < n.len; ++i) {
-                                            // to append += n.getUnitigKmer(i).toString().substr(k - 1, 1);
-                                            std::cout << "n.getUnitigKmer: " << n.getUnitigKmer(i).toString().substr(k - 1, 1) << "\n";
-                                        }
-                                    }
-                                    else {
-                                        for (int i = n.dist; i < n.len; ++i) {
-                                            // to append += n.getUnitigKmer(i).twin().toString().substr(k - 1, 1);
-                                            std::cout << "n.getUnitigKmer: " << n.getUnitigKmer(i).twin().toString().substr(k - 1, 1) << "\n";
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    */
                 }
-
             }
         }
     }
@@ -747,17 +684,14 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                             // begin bubble
                             if (opt.bubble) {
                                 int color = *superset_colors.begin();
-                                std::string variation;
                                 std::unordered_set<std::string> visited;                                
-                                BubblePath result = explorePath(ccdbg, unitig, superset_colors, color, visited, k);
-                                if (!result.bubble_left.empty() && !result.variation.empty() && !result.bubble_right.empty()) {
-                                    variation_stream << ">" << color << "\n" << result.variation.substr(0, 1) << "\n";
+                                BubblePath result = explorePath(ccdbg, unitig, visited, superset_colors, color,  k);
+                                if (!result.bubble_left.empty() && !result.variation.empty() && !result.bubble_right.empty() && result.variation.length() > k) {
                                     const_left_stream << ">" << color << "\n" << result.bubble_left << "\n";
+                                    variation_stream << ">" << color << "\n" << result.variation.substr(0, result.variation.length() - k) << "\n";                                    
                                     const_right_stream << ">" << color << "\n" << result.bubble_right << "\n";
-                                }
-                                
+                                }                                
                             }
-                            // continue default processing
                             // end bubble
                             std::set<int> positions_to_remove; // Positions (i.e. k-mers) along the current unitig that will be cut out
                             std::map<std::vector<int>, int> result_map; // Key = colors; Value = Position (i.e. k-mer)
