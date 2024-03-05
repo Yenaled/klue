@@ -706,12 +706,12 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
     }
     // for bubble
     std::mutex mutex_bubbles;
-    std::ofstream const_left_file("constant_left.fa", std::ofstream::out); // user-defined output file
+    std::ofstream const_left_file("const_left.fa", std::ofstream::out); // user-defined output file
+    std::ofstream const_right_file("const_right.fa", std::ofstream::out);
     std::ofstream variation_file("variation.fa", std::ofstream::out);
-    std::ofstream const_right_file("constant_right.fa", std::ofstream::out);
     // file validation
     if (!const_left_file.is_open() || !variation_file.is_open() || !const_right_file.is_open()) {
-        std::cerr << "[WARNING]: Error opening output files." << std::endl;
+        std::cerr << "Error: could not open output files." << std::endl;
         return; // exit
     }
     // continue with default processing
@@ -1007,8 +1007,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
     }
     o.flush();
     const_left_file.flush(); variation_file.flush(); const_right_file.flush(); // for bubble
-    // ADD close files
-
+    const_left_file.close(); variation_file.close(); const_right_file.close(); // for bubble
     ccdbg.clear(); // Free memory associated with the colored compact dBG
     ncolors = tmp_files.size(); // Record the number of "colors"
     for (auto tmp_file : tmp_files) std::remove(tmp_file.c_str()); // Remove temp files needed to make colored graph
