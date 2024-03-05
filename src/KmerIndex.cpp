@@ -141,32 +141,32 @@ std::string extendUnitig(const UnitigMap<DataAccessor<void>, DataStorage<void>, 
 }
 */
 
-struct TraversalResult {
+struct Extend {
     std::string result;
     int color;
 };
 
-TraversalResult extendUnitig(const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& current,
+Extend extendUnitig(const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& current,
     std::unordered_set<std::string>& visited,
     const int& color,
     std::string current_str,
     const std::unordered_set<int>& superset_colors,
     const int& k) {
 
-    TraversalResult traversalResult;
+    Extend traversal_result;
     bool hasValidSuccessor = false;
 
     std::string colored_unitig = current.getUnitigHead().toString() + std::to_string(color);
     if (visited.find(colored_unitig) != visited.end() || current.isEmpty) {
-        traversalResult.color = color;
-        return traversalResult;
+        traversal_result.color = color;
+        return traversal_result;
     }
     visited.insert(colored_unitig);
 
     auto successors = current.getSuccessors();
     if (successors.begin() == successors.end()) {
-        traversalResult.color = color;
-        return traversalResult;
+        traversal_result.color = color;
+        return traversal_result;
     }
 
     for (const auto& next : successors) {
@@ -188,22 +188,22 @@ TraversalResult extendUnitig(const UnitigMap<DataAccessor<void>, DataStorage<voi
                         str = next.getUnitigKmer(i).twin().toString().substr(k - 1) + str;
                     }
                 }
-                TraversalResult extendResult = extendUnitig(next, visited, color, str, superset_colors, k);
+                Extend extendResult = extendUnitig(next, visited, color, str, superset_colors, k);
                 current_str += extendResult.result;
             }
         }
     }
-    traversalResult.result = current_str;
-    traversalResult.color = color;
-    return traversalResult;
+    traversal_result.result = current_str;
+    traversal_result.color = color;
+    return traversal_result;
 }
 
-struct VariationPath {
+struct BubblePath {
     std::vector<std::string> variations;
     bool reachedBubbleRight = false;
 };
 
-VariationPath exploreVariations(ColoredCDBG<void>& ccdbg,
+BubblePath bubbleVariations(ColoredCDBG<void>& ccdbg,
     const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& current,
     const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& terminal_kmer,
     const std::unordered_set<int>& superset_colors,
@@ -211,7 +211,7 @@ VariationPath exploreVariations(ColoredCDBG<void>& ccdbg,
     std::unordered_set<std::string>& visited,
     int k) {
 
-    VariationPath pathResult;
+    BubblePath pathResult;
     std::string colored_unitig = current.getUnitigHead().toString() + std::to_string(color);
     if (visited.find(colored_unitig) != visited.end() || current.isEmpty) { return pathResult; }
     visited.insert(colored_unitig);
@@ -238,9 +238,8 @@ VariationPath exploreVariations(ColoredCDBG<void>& ccdbg,
                     for (int i = next.dist; i < next.len; ++i) { str += next.getUnitigKmer(i).twin().toString().substr(k - 1); }
                     
                 }
-                std::cout << "str: " << str << "\n";
                 pathResult.variations.push_back(str);
-                VariationPath tempResult = exploreVariations(ccdbg, next, terminal_kmer, superset_colors, color, visited, k);
+                BubblePath tempResult = bubbleVariations(ccdbg, next, terminal_kmer, superset_colors, color, visited, k);
                 pathResult.variations.insert(pathResult.variations.end(), tempResult.variations.begin(), tempResult.variations.end());
                 if (tempResult.reachedBubbleRight) {
                     pathResult.reachedBubbleRight = true;
@@ -252,13 +251,13 @@ VariationPath exploreVariations(ColoredCDBG<void>& ccdbg,
     return pathResult;
 }
 
-struct BubblePath {
+struct Bubble {
     std::string bubble_left;
     std::string variation;
     std::string bubble_right;
 };
 
-BubblePath explorePath(ColoredCDBG<void>& ccdbg,
+Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
     const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& current,
     std::unordered_set<std::string>& visited,
     const std::unordered_set<int>& superset_colors,
@@ -273,7 +272,7 @@ BubblePath explorePath(ColoredCDBG<void>& ccdbg,
     auto predecessors = current.getPredecessors();
     if (successors.begin() == successors.end() && predecessors.begin() == predecessors.end()) { return {}; } // Terminal node
 
-    BubblePath pathResult;
+    Bubble bubblePath;
     std::string variation;
 
     // explore predecessors to find bubble_left
@@ -284,7 +283,7 @@ BubblePath explorePath(ColoredCDBG<void>& ccdbg,
         for (; it_prev != it_prev_end; ++it_prev) { colors_prev.insert(it_prev.getColorID()); }
         if (colors_prev.find(color) != colors_prev.end() && // if color is found in set of valid predecessor colors
             (colors_prev.size() > 1 || prev.getPredecessors().begin() == prev.getPredecessors().end())) { // if there are multiple colors or no predecessors
-            pathResult.bubble_left = prev.getUnitigHead().toString(); // adjust substr to get Head to Tail
+            bubblePath.bubble_left = prev.getUnitigHead().toString(); // adjust substr to get Head to Tail
         }
     }
 
@@ -296,34 +295,34 @@ BubblePath explorePath(ColoredCDBG<void>& ccdbg,
         for (; it_next != it_next_end; ++it_next) { colors_next.insert(it_next.getColorID()); }
         if (colors_next.find(color) != colors_next.end()) {
             if (colors_next.size() > 1 || next.getSuccessors().begin() == next.getSuccessors().end()) { // if multiple colors present or no successors
-                pathResult.bubble_right = next.getUnitigHead().toString(); // adjust substr to get Head to Tail
+                bubblePath.bubble_right = next.getUnitigHead().toString(); // adjust substr to get Head to Tail
             }
             else {
                 variation += next.getUnitigHead().toString();
-                BubblePath tempResult = explorePath(ccdbg, next, visited, superset_colors, color, k);
-                if (!tempResult.bubble_right.empty() && pathResult.bubble_right.empty()) { pathResult.bubble_right = tempResult.bubble_right; }
-                if (!tempResult.bubble_left.empty() && pathResult.bubble_left.empty()) { pathResult.bubble_left = tempResult.bubble_left; }
+                Bubble tempResult = exploreBubble(ccdbg, next, visited, superset_colors, color, k);
+                if (!tempResult.bubble_right.empty() && bubblePath.bubble_right.empty()) { bubblePath.bubble_right = tempResult.bubble_right; }
+                if (!tempResult.bubble_left.empty() && bubblePath.bubble_left.empty()) { bubblePath.bubble_left = tempResult.bubble_left; }
                 std::unordered_map<std::string, std::string> bubble_map;
                 // if bubble_left and bubble_right are not empty and not the same, valid flanking pair
-                if (!pathResult.bubble_left.empty() && !pathResult.bubble_right.empty() && pathResult.bubble_left != pathResult.bubble_right) {
-                    Kmer bubble_left_kmer(pathResult.bubble_left.c_str());
-                    Kmer bubble_right_kmer(pathResult.bubble_right.c_str());
+                if (!bubblePath.bubble_left.empty() && !bubblePath.bubble_right.empty() && bubblePath.bubble_left != bubblePath.bubble_right) {
+                    Kmer bubble_left_kmer(bubblePath.bubble_left.c_str());
+                    Kmer bubble_right_kmer(bubblePath.bubble_right.c_str());
                     std::unordered_set<std::string> variation_visited;                    
                     UnitigMap<DataAccessor<void>, DataStorage<void>, false> um_left = ccdbg.find(bubble_left_kmer, false);   // start node (left -> right)
                     UnitigMap<DataAccessor<void>, DataStorage<void>, false> um_right = ccdbg.find(bubble_right_kmer, false); // terminal node
 
                     // forward traversal from bubble_left_kmer
                     if (!um_left.isEmpty && !um_right.isEmpty) { // valid start and end unitigs found
-                        VariationPath varPath = exploreVariations(ccdbg, um_left, um_right, superset_colors, color, variation_visited, k);
-                        for (const auto& var : varPath.variations) {
-                            pathResult.variation += var;
+                        BubblePath bubble_path = bubbleVariations(ccdbg, um_left, um_right, superset_colors, color, variation_visited, k);
+                        for (const auto& var : bubble_path.variations) {
+                            bubblePath.variation += var;
                         }
                     }
                 }
             }
         }
     }
-    return pathResult;
+    return bubblePath;
 }
 
 // Begin set operations
@@ -748,46 +747,38 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                             if (opt.extend) {
                                 int color = *superset_colors.begin();
                                 std::unordered_set<std::string> visited;
-                                TraversalResult traversal = extendUnitig(unitig, visited, color, "", superset_colors, k);
-                                std::cout << ">" << traversal.color << "\n" << traversal.result << "\n";
-
-                                // add extend info to k_map
+                                Extend traversal = extendUnitig(unitig, visited, color, "", superset_colors, k);
+                                std::string to_append = "";
+                                for (int i = unitig.dist + 1; i < unitig.len; ++i) {
+									to_append = unitig.getUnitigKmer(i).toString().back();
+								}
+                                std::string unitig_str = unitig.getUnitigHead().toString() + to_append;
+                                // DEBUG
+                                if (!unitig_str.empty()) {
+                                    oss << ">" << traversal.color << "\n" << unitig_str + traversal.result << "\n";
+                                }
+                                // DEBUG
+                                k_map.clear();
+                                // update k_map with extend results
                                 int last = 0;
                                 for (const auto& pair : k_map) {
-                                    std::cout << "color: " << pair.first << "\n";
                                     for (const auto& pos : pair.second) {
-                                        std::cout << "positions: " << pos << "\n";
                                         last = pos;
                                     }
                                 }
                                 if (!traversal.result.empty()) {
-                                    std::cout << "traversal result: " << traversal.result << "\n";
-                                }
-                                /*
-                                if (!traversal.result.empty()) {
-                                    for (int i = last; i <= traversal.result.length() - k + last; ++i) {
-										k_map[traversal.color].insert(i);
+                                    for (int i = last; i <= traversal.result.length() + last; ++i) {
+                                        // DEBUG
+										//k_map[traversal.color].insert(i);
 									}
                                 }
-                                */
-                                
-                                /*
-                                k_map.clear();
-                                std::cout << "end extend\n";
-                                // repopulate k_map with results from extendUnitig
-                                if (traversal.result.length() >= k) {
-                                    for (size_t i = 0; i <= traversal.result.length() - k; ++i) {
-                                        k_map[traversal.color].insert(i);
-                                    }
-                                }
-                                */
                             }
                             // end extend
                             // begin bubble
                             if (opt.bubble) {
                                 int color = *superset_colors.begin();
                                 std::unordered_set<std::string> visited;                                
-                                BubblePath result = explorePath(ccdbg, unitig, visited, superset_colors, color,  k);
+                                Bubble result = exploreBubble(ccdbg, unitig, visited, superset_colors, color,  k);
                                 if (!result.bubble_left.empty() && !result.variation.empty() && !result.bubble_right.empty() && result.variation.length() > k) {
                                     const_left_stream << ">" << color << "\n" << result.bubble_left << "\n";
                                     variation_stream << ">" << color << "\n" << result.variation.substr(0, result.variation.length() - k) << "\n";                                    
