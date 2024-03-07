@@ -215,8 +215,6 @@ BubblePath bubbleVariations(ColoredCDBG<void>& ccdbg,
     std::string colored_unitig = current.getUnitigHead().toString() + std::to_string(color);
     if (visited.find(colored_unitig) != visited.end() || current.isEmpty) { return pathResult; }
     visited.insert(colored_unitig);
-    std::cout << "visited.size(): " << visited.size() << "\n";
-    std::cout << "colored_unitig1: " << colored_unitig << "\n";
 
     if (current == terminal_kmer) { // terminate traversal when we reach bubble_right
         pathResult.terminalNode = true;
@@ -233,20 +231,11 @@ BubblePath bubbleVariations(ColoredCDBG<void>& ccdbg,
             for (; it_next != it_next_end; ++it_next) { colors.insert(it_next.getColorID()); }
             if (colors.find(color) != colors.end()) { // check that next unitig color matches current traversal color                
                 std::string str;
-                std::cout << "next.getUnitigHead().toString(): " << next.getUnitigHead().toString() << "\n";
-                std::cout << "next.getUnitigTail().toString(): " << next.getUnitigTail().toString() << "\n";
                 if (next.strand) {
-                    for (int i = next.dist; i < next.len; ++i) {
-                        str += next.getUnitigKmer(i).toString().substr(k - 1);
-                        std::cout << "substr1: " << next.getUnitigKmer(i).toString().substr(k - 1) << "\n";
-                    }
+                    for (int i = next.dist; i < next.len; ++i) { str += next.getUnitigKmer(i).toString().substr(k - 1); }
                 }
                 else {
-                    for (int i = next.dist; i < next.len; ++i) {
-                        str = next.getUnitigKmer(i).twin().toString().substr(k - 1) + str;
-                    std::cout << "substr2: " << next.getUnitigKmer(i).twin().toString().substr(k - 1) << "\n";
-                    }
-                std::cout << "str: " << str << "\n";
+                    for (int i = next.dist; i < next.len; ++i) { str = next.getUnitigKmer(i).twin().toString().substr(k - 1) + str; }
                 }
                 pathResult.variations.push_back(str);
                 BubblePath tempResult = bubbleVariations(ccdbg, next, terminal_kmer, superset_colors, color, visited, k);
@@ -313,21 +302,17 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                 if (!tempResult.bubble_right.empty() && bubblePath.bubble_right.empty()) { bubblePath.bubble_right = tempResult.bubble_right; }
                 if (!tempResult.bubble_left.empty() && bubblePath.bubble_left.empty()) { bubblePath.bubble_left = tempResult.bubble_left; }
                 std::unordered_map<std::string, std::string> bubble_map;
-                // if bubble_left and bubble_right are not empty and not the same, valid flanking pair
+                // if bubble_left and bubble_right are not empty and not the same => valid flanking pair
                 if (!bubblePath.bubble_left.empty() && !bubblePath.bubble_right.empty() && bubblePath.bubble_left != bubblePath.bubble_right) {
                     Kmer bubble_left_kmer(bubblePath.bubble_left.c_str());
                     Kmer bubble_right_kmer(bubblePath.bubble_right.c_str());
                     std::unordered_set<std::string> variation_visited;
                     UnitigMap<DataAccessor<void>, DataStorage<void>, false> um_left = ccdbg.find(bubble_left_kmer, false);   // start node (left -> right)
                     UnitigMap<DataAccessor<void>, DataStorage<void>, false> um_right = ccdbg.find(bubble_right_kmer, false); // terminal node
-
-                    // forward traversal from bubble_left_kmer
-                    if (!um_left.isEmpty && !um_right.isEmpty) { // valid start and end unitigs found
+                    // Found valid start and end unitigs, now find variation 
+                    if (!um_left.isEmpty && !um_right.isEmpty) { 
                         BubblePath bubble_path = bubbleVariations(ccdbg, um_left, um_right, superset_colors, color, variation_visited, k);
-                        for (const auto& var : bubble_path.variations) {
-                            bubblePath.variation += var;
-                        }
-                        // move substring here rather than main function
+                        for (const auto& var : bubble_path.variations) { bubblePath.variation += var; }
                         return bubblePath;
                     }
                 }
@@ -718,7 +703,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
     }
     // for bubble
     std::mutex mutex_bubbles;
-    std::ofstream const_left_file("constant_left.fa", std::ofstream::out); // user-defined output file
+    std::ofstream const_left_file("constant_left.fa", std::ofstream::out); // change to user-defined output file
     std::ofstream variation_file("variation.fa", std::ofstream::out);
     std::ofstream const_right_file("constant_right.fa", std::ofstream::out);
     // file validation
