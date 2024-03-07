@@ -114,9 +114,9 @@ std::string extendUnitig(const UnitigMap<DataAccessor<void>, DataStorage<void>, 
         if (visited.find(next.getUnitigHead().toString() + std::to_string(color)) == visited.end()) {
             UnitigColors::const_iterator it_next = next.getData()->getUnitigColors(next)->begin(next);
             UnitigColors::const_iterator it_next_end = next.getData()->getUnitigColors(next)->end();
-            std::unordered_set<int> colors_next;
-            for (; it_next != it_next_end; ++it_next) { colors_next.insert(it_next.getColorID()); }
-            if (colors_next.find(color) != colors_next.end()) { // Check that next unitig color matches current traversal color
+            std::unordered_set<int> colors;
+            for (; it_next != it_next_end; ++it_next) { colors.insert(it_next.getColorID()); }
+            if (colors.find(color) != colors.end()) { // Check that next unitig color matches current traversal color
                 hasValidSuccessor = true;
                 std::string str;
                 if (next.strand) {
@@ -173,9 +173,9 @@ Extend extendUnitig(const UnitigMap<DataAccessor<void>, DataStorage<void>, false
         if (visited.find(next.getUnitigHead().toString() + std::to_string(color)) == visited.end()) {
             UnitigColors::const_iterator it_next = next.getData()->getUnitigColors(next)->begin(next);
             UnitigColors::const_iterator it_next_end = next.getData()->getUnitigColors(next)->end();
-            std::unordered_set<int> colors_next;
-            for (; it_next != it_next_end; ++it_next) { colors_next.insert(it_next.getColorID()); }
-            if (colors_next.find(color) != colors_next.end()) {
+            std::unordered_set<int> colors;
+            for (; it_next != it_next_end; ++it_next) { colors.insert(it_next.getColorID()); }
+            if (colors.find(color) != colors.end()) {
                 hasValidSuccessor = true;
                 std::string str;
                 if (next.strand) {
@@ -200,7 +200,7 @@ Extend extendUnitig(const UnitigMap<DataAccessor<void>, DataStorage<void>, false
 
 struct BubblePath {
     std::vector<std::string> variations;
-    bool reachedBubbleRight = false;
+    bool terminalNode = false;
 };
 
 BubblePath bubbleVariations(ColoredCDBG<void>& ccdbg,
@@ -215,9 +215,11 @@ BubblePath bubbleVariations(ColoredCDBG<void>& ccdbg,
     std::string colored_unitig = current.getUnitigHead().toString() + std::to_string(color);
     if (visited.find(colored_unitig) != visited.end() || current.isEmpty) { return pathResult; }
     visited.insert(colored_unitig);
+    std::cout << "visited.size(): " << visited.size() << "\n";
+    std::cout << "colored_unitig1: " << colored_unitig << "\n";
 
     if (current == terminal_kmer) { // terminate traversal when we reach bubble_right
-        pathResult.reachedBubbleRight = true;
+        pathResult.terminalNode = true;
         return pathResult;
     }
 
@@ -227,22 +229,30 @@ BubblePath bubbleVariations(ColoredCDBG<void>& ccdbg,
         if (visited.find(next.getUnitigHead().toString() + std::to_string(color)) == visited.end()) {
             UnitigColors::const_iterator it_next = next.getData()->getUnitigColors(next)->begin(next);
             UnitigColors::const_iterator it_next_end = next.getData()->getUnitigColors(next)->end();
-            std::unordered_set<int> colors_next;
-            for (; it_next != it_next_end; ++it_next) { colors_next.insert(it_next.getColorID()); }
-            if (colors_next.find(color) != colors_next.end()) { // check that next unitig color matches current traversal color                
+            std::unordered_set<int> colors;
+            for (; it_next != it_next_end; ++it_next) { colors.insert(it_next.getColorID()); }
+            if (colors.find(color) != colors.end()) { // check that next unitig color matches current traversal color                
                 std::string str;
+                std::cout << "next.getUnitigHead().toString(): " << next.getUnitigHead().toString() << "\n";
+                std::cout << "next.getUnitigTail().toString(): " << next.getUnitigTail().toString() << "\n";
                 if (next.strand) {
-                    for (int i = next.dist; i < next.len; ++i) { str += next.getUnitigKmer(i).toString().substr(k - 1); }
+                    for (int i = next.dist; i < next.len; ++i) {
+                        str += next.getUnitigKmer(i).toString().substr(k - 1);
+                        std::cout << "substr1: " << next.getUnitigKmer(i).toString().substr(k - 1) << "\n";
+                    }
                 }
                 else {
-                    for (int i = next.dist; i < next.len; ++i) { str = next.getUnitigKmer(i).twin().toString().substr(k - 1) + str; }
-
+                    for (int i = next.dist; i < next.len; ++i) {
+                        str = next.getUnitigKmer(i).twin().toString().substr(k - 1) + str;
+                    std::cout << "substr2: " << next.getUnitigKmer(i).twin().toString().substr(k - 1) << "\n";
+                    }
+                std::cout << "str: " << str << "\n";
                 }
                 pathResult.variations.push_back(str);
                 BubblePath tempResult = bubbleVariations(ccdbg, next, terminal_kmer, superset_colors, color, visited, k);
                 pathResult.variations.insert(pathResult.variations.end(), tempResult.variations.begin(), tempResult.variations.end());
-                if (tempResult.reachedBubbleRight) {
-                    pathResult.reachedBubbleRight = true;
+                if (tempResult.terminalNode) {
+                    pathResult.terminalNode = true;
                     break;
                 }
             }
@@ -291,10 +301,10 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
     for (const auto& next : successors) {
         UnitigColors::const_iterator it_next = next.getData()->getUnitigColors(next)->begin(next);
         UnitigColors::const_iterator it_next_end = next.getData()->getUnitigColors(next)->end();
-        std::unordered_set<int> colors_next;
-        for (; it_next != it_next_end; ++it_next) { colors_next.insert(it_next.getColorID()); }
-        if (colors_next.find(color) != colors_next.end()) {
-            if (colors_next.size() > 1 || next.getSuccessors().begin() == next.getSuccessors().end()) { // if multiple colors present or no successors
+        std::unordered_set<int> colors;
+        for (; it_next != it_next_end; ++it_next) { colors.insert(it_next.getColorID()); }
+        if (colors.find(color) != colors.end()) {
+            if (colors.size() > 1 || next.getSuccessors().begin() == next.getSuccessors().end()) { // if multiple colors present or no successors
                 bubblePath.bubble_right = next.getUnitigHead().toString(); // adjust substr to get Head to Tail
             }
             else {
@@ -317,6 +327,8 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                         for (const auto& var : bubble_path.variations) {
                             bubblePath.variation += var;
                         }
+                        // move substring here rather than main function
+                        return bubblePath;
                     }
                 }
             }
@@ -706,12 +718,12 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
     }
     // for bubble
     std::mutex mutex_bubbles;
-    std::ofstream const_left_file("const_left.fa", std::ofstream::out); // user-defined output file
-    std::ofstream const_right_file("const_right.fa", std::ofstream::out);
+    std::ofstream const_left_file("constant_left.fa", std::ofstream::out); // user-defined output file
     std::ofstream variation_file("variation.fa", std::ofstream::out);
+    std::ofstream const_right_file("constant_right.fa", std::ofstream::out);
     // file validation
     if (!const_left_file.is_open() || !variation_file.is_open() || !const_right_file.is_open()) {
-        std::cerr << "Error: could not open output files." << std::endl;
+        std::cerr << "[WARNING]: Error opening output files." << std::endl;
         return; // exit
     }
     // continue with default processing
@@ -1007,7 +1019,8 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
     }
     o.flush();
     const_left_file.flush(); variation_file.flush(); const_right_file.flush(); // for bubble
-    const_left_file.close(); variation_file.close(); const_right_file.close(); // for bubble
+    // ADD close files
+
     ccdbg.clear(); // Free memory associated with the colored compact dBG
     ncolors = tmp_files.size(); // Record the number of "colors"
     for (auto tmp_file : tmp_files) std::remove(tmp_file.c_str()); // Remove temp files needed to make colored graph
