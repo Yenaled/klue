@@ -201,9 +201,10 @@ Extend extendUnitig(const UnitigMap<DataAccessor<void>, DataStorage<void>, false
 struct BubblePath {
     std::vector<std::string> variations;
     bool terminalNode = false;
+    bool switchKmers = false;
 };
 
-BubblePath bubbleVariations(ColoredCDBG<void>& ccdbg,
+BubblePath bubbleVariations(const ColoredCDBG<void>& ccdbg,
     const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& current,
     const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& terminal_kmer,
     const std::unordered_set<int>& superset_colors,
@@ -211,18 +212,29 @@ BubblePath bubbleVariations(ColoredCDBG<void>& ccdbg,
     std::unordered_set<std::string>& visited,
     int k) {
 
-    BubblePath pathResult;
-    std::string colored_unitig = current.getUnitigHead().toString() + std::to_string(color);
-    if (visited.find(colored_unitig) != visited.end() || current.isEmpty) { return pathResult; }
-    visited.insert(colored_unitig);
+    BubblePath pathResult;    
 
-    if (current == terminal_kmer) { // terminate traversal when we reach bubble_right
+    if (current == terminal_kmer) { // terminate traversal when we reach terminal node
         pathResult.terminalNode = true;
         return pathResult;
     }
 
+    UnitigMap<DataAccessor<void>, DataStorage<void>, false> current_copy = current;
+    UnitigMap<DataAccessor<void>, DataStorage<void>, false> terminal_kmer_copy = terminal_kmer;
+
+    // If there are no successors, switch terminal_kmer and current to find variations
+    if (current.getSuccessors().begin() == current.getSuccessors().end()) {
+        current_copy = terminal_kmer;
+		terminal_kmer_copy = current;
+        pathResult.switchKmers = true;
+    }
+
+    std::string colored_unitig = current_copy.getUnitigHead().toString() + std::to_string(color);
+    if (visited.find(colored_unitig) != visited.end() || current.isEmpty) { return pathResult; }
+    visited.insert(colored_unitig);
+
     // Traverse successors to find variations
-    auto successors = current.getSuccessors();
+    auto successors = current_copy.getSuccessors();
     for (const auto& next : successors) {
         if (visited.find(next.getUnitigHead().toString() + std::to_string(color)) == visited.end()) {
             UnitigColors::const_iterator it_next = next.getData()->getUnitigColors(next)->begin(next);
@@ -232,13 +244,19 @@ BubblePath bubbleVariations(ColoredCDBG<void>& ccdbg,
             if (colors.find(color) != colors.end()) { // check that next unitig color matches current traversal color                
                 std::string str;
                 if (next.strand) {
-                    for (int i = next.dist; i < next.len; ++i) { str += next.getUnitigKmer(i).toString().substr(k - 1); }
+                    for (int i = next.dist; i < next.len; ++i) {
+                        str += next.getUnitigKmer(i).toString().substr(k - 1);
+                        //std::cout << "next.getUnitigKmer(i): " << next.getUnitigKmer(i).toString().substr(k - 1) << "\n";
+                    }
                 }
                 else {
-                    for (int i = next.dist; i < next.len; ++i) { str = next.getUnitigKmer(i).twin().toString().substr(k - 1) + str; }
+                    for (int i = next.dist; i < next.len; ++i) {
+                        str = next.getUnitigKmer(i).twin().toString().substr(k - 1) + str;
+                        //std::cout << "next.getUnitigKmer(i).twin(): " << next.getUnitigKmer(i).twin().toString().substr(k - 1) << "\n";
+                    }
                 }
                 pathResult.variations.push_back(str);
-                BubblePath tempResult = bubbleVariations(ccdbg, next, terminal_kmer, superset_colors, color, visited, k);
+                BubblePath tempResult = bubbleVariations(ccdbg, next, terminal_kmer_copy, superset_colors, color, visited, k);
                 pathResult.variations.insert(pathResult.variations.end(), tempResult.variations.begin(), tempResult.variations.end());
                 if (tempResult.terminalNode) {
                     pathResult.terminalNode = true;
@@ -246,7 +264,7 @@ BubblePath bubbleVariations(ColoredCDBG<void>& ccdbg,
                 }
             }
         }
-    }
+    }    
     return pathResult;
 }
 
@@ -304,15 +322,23 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                 std::unordered_map<std::string, std::string> bubble_map;
                 // if bubble_left and bubble_right are not empty and not the same => valid flanking pair
                 if (!bubblePath.bubble_left.empty() && !bubblePath.bubble_right.empty() && bubblePath.bubble_left != bubblePath.bubble_right) {
+                    
                     Kmer bubble_left_kmer(bubblePath.bubble_left.c_str());
                     Kmer bubble_right_kmer(bubblePath.bubble_right.c_str());
                     std::unordered_set<std::string> variation_visited;
                     UnitigMap<DataAccessor<void>, DataStorage<void>, false> um_left = ccdbg.find(bubble_left_kmer, false);   // start node (left -> right)
                     UnitigMap<DataAccessor<void>, DataStorage<void>, false> um_right = ccdbg.find(bubble_right_kmer, false); // terminal node
                     // Found valid start and end unitigs, now find variation 
-                    if (!um_left.isEmpty && !um_right.isEmpty) { 
+                    if (!um_left.isEmpty && !um_right.isEmpty) {                        
                         BubblePath bubble_path = bubbleVariations(ccdbg, um_left, um_right, superset_colors, color, variation_visited, k);
+                        if (bubble_path.switchKmers) {
+                            auto temp = bubblePath.bubble_left;
+                            bubblePath.bubble_left = bubblePath.bubble_right;
+                            bubblePath.bubble_right = temp;
+                        }
                         for (const auto& var : bubble_path.variations) { bubblePath.variation += var; }
+                        //std::cout << ">" << color << "\n[valid bubble]: (" << bubblePath.bubble_left << ", " << bubblePath.bubble_right << ")\n";
+                        //std::cout << ">" << color << "\n[valid variation]: " << bubblePath.variation << "\n";
                         return bubblePath;
                     }
                 }
