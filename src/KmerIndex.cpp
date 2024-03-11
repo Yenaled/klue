@@ -281,13 +281,13 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
     int color,
     int k) {
 
-    std::string colored_unitig = current.getUnitigHead().toString() + std::to_string(color);
-    if (visited.find(colored_unitig) != visited.end()) { return {}; } // Dont't revist nodes with the same color
-    visited.insert(colored_unitig);
-
     auto successors = current.getSuccessors();
     auto predecessors = current.getPredecessors();
     if (successors.begin() == successors.end() && predecessors.begin() == predecessors.end()) { return {}; } // Terminal node
+
+    std::string colored_unitig = current.getUnitigHead().toString() + std::to_string(color);
+    if (visited.find(colored_unitig) != visited.end()) { return {}; } // Dont't revist nodes with the same color
+    visited.insert(colored_unitig);
 
     Bubble bubblePath;
     std::string variation;
@@ -313,6 +313,7 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
         if (colors.find(color) != colors.end()) {
             if (colors.size() > 1 || next.getSuccessors().begin() == next.getSuccessors().end()) { // if multiple colors present or no successors
                 bubblePath.bubble_right = next.getUnitigHead().toString(); // adjust substr to get Head to Tail
+                
             }
             else {
                 variation += next.getUnitigHead().toString();
@@ -320,25 +321,22 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                 if (!tempResult.bubble_right.empty() && bubblePath.bubble_right.empty()) { bubblePath.bubble_right = tempResult.bubble_right; }
                 if (!tempResult.bubble_left.empty() && bubblePath.bubble_left.empty()) { bubblePath.bubble_left = tempResult.bubble_left; }
                 std::unordered_map<std::string, std::string> bubble_map;
-                // if bubble_left and bubble_right are not empty and not the same => valid flanking pair
+                // if bubble_left and bubble_right are not empty and not the same, they are a valid flanking pair
                 if (!bubblePath.bubble_left.empty() && !bubblePath.bubble_right.empty() && bubblePath.bubble_left != bubblePath.bubble_right) {
-                    
                     Kmer bubble_left_kmer(bubblePath.bubble_left.c_str());
                     Kmer bubble_right_kmer(bubblePath.bubble_right.c_str());
                     std::unordered_set<std::string> variation_visited;
                     UnitigMap<DataAccessor<void>, DataStorage<void>, false> um_left = ccdbg.find(bubble_left_kmer, false);   // start node (left -> right)
                     UnitigMap<DataAccessor<void>, DataStorage<void>, false> um_right = ccdbg.find(bubble_right_kmer, false); // terminal node
                     // Found valid start and end unitigs, now find variation 
-                    if (!um_left.isEmpty && !um_right.isEmpty) {                        
-                        BubblePath bubble_path = bubbleVariations(ccdbg, um_left, um_right, superset_colors, color, variation_visited, k);
+                    if (!um_left.isEmpty && !um_right.isEmpty) {
+                        BubblePath bubble_path = bubbleVariations(ccdbg, um_left, um_right, superset_colors, color, variation_visited, k);                      
                         if (bubble_path.switchKmers) {
                             auto temp = bubblePath.bubble_left;
                             bubblePath.bubble_left = bubblePath.bubble_right;
                             bubblePath.bubble_right = temp;
                         }
                         for (const auto& var : bubble_path.variations) { bubblePath.variation += var; }
-                        //std::cout << ">" << color << "\n[valid bubble]: (" << bubblePath.bubble_left << ", " << bubblePath.bubble_right << ")\n";
-                        //std::cout << ">" << color << "\n[valid variation]: " << bubblePath.variation << "\n";
                         return bubblePath;
                     }
                 }
