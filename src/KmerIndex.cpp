@@ -246,13 +246,11 @@ BubblePath bubbleVariations(const ColoredCDBG<void>& ccdbg,
                 if (next.strand) {
                     for (int i = next.dist; i < next.len; ++i) {
                         str += next.getUnitigKmer(i).toString().substr(k - 1);
-                        //std::cout << "next.getUnitigKmer(i): " << next.getUnitigKmer(i).toString().substr(k - 1) << "\n";
                     }
                 }
                 else {
                     for (int i = next.dist; i < next.len; ++i) {
                         str = next.getUnitigKmer(i).twin().toString().substr(k - 1) + str;
-                        //std::cout << "next.getUnitigKmer(i).twin(): " << next.getUnitigKmer(i).twin().toString().substr(k - 1) << "\n";
                     }
                 }
                 pathResult.variations.push_back(str);
@@ -330,13 +328,18 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                     UnitigMap<DataAccessor<void>, DataStorage<void>, false> um_right = ccdbg.find(bubble_right_kmer, false); // terminal node
                     // Found valid start and end unitigs, now find variation 
                     if (!um_left.isEmpty && !um_right.isEmpty) {
-                        BubblePath bubble_path = bubbleVariations(ccdbg, um_left, um_right, superset_colors, color, variation_visited, k);                      
+                        BubblePath bubble_path = bubbleVariations(ccdbg, um_left, um_right, superset_colors, color, variation_visited, k);
                         if (bubble_path.switchKmers) {
                             auto temp = bubblePath.bubble_left;
                             bubblePath.bubble_left = bubblePath.bubble_right;
                             bubblePath.bubble_right = temp;
                         }
-                        for (const auto& var : bubble_path.variations) { bubblePath.variation += var; }
+                        for (const auto& var : bubble_path.variations) {
+                            bubblePath.variation += var;
+                        }
+                        if (!bubblePath.variation.empty()) {
+                            bubblePath.variation = current.getUnitigTail().toString().substr(1) + bubblePath.variation.substr(0, bubblePath.variation.length() - 1);
+                        }                        
                         return bubblePath;
                     }
                 }
@@ -357,6 +360,53 @@ std::vector<std::string> split(const std::string& s, char delimiter) {
     }
     return tokens;
 }
+
+// switch to NAND boolean logic
+
+
+/*
+
+"not" : NOT(A) = A NAND A
+"and" : A AND B = ( A NAND B ) NAND ( A NAND B )
+"or"  : A OR B = ( A NAND A ) NAND ( B NAND B )
+"nor" : A NOR B = [ ( A NAND A ) NAND ( B NAND B ) ] NAND [ ( A NAND A ) NAND ( B NAND B ) ]
+"xor" : A XOR B = [ A NAND ( A NAND B ) ] NAND [ B NAND ( A NAND B ) ]
+"xnor": A XNOR B = [ ( A NAND A ) NAND ( B NAND B ) ] NAND ( A NAND B )
+
+*/
+/*
+
+// NAND operation
+bool nand(bool a, bool b) {
+    return !(a && b);
+}
+
+// Implement other operations using NAND
+bool NOT(bool a) {
+    return nand(a, a);
+}
+
+bool AND(bool a, bool b) {
+    return NOT(nand(a, b));
+}
+
+bool OR(bool a, bool b) {
+    return nand(NOT(a), NOT(b));
+}
+
+bool XOR(bool a, bool b) {
+    return nand(nand(a, nand(a, b)), nand(b, nand(a, b)));
+}
+
+bool NOR(bool a, bool b) {
+    return NOT(OR(a, b));
+}
+
+bool XNOR(bool a, bool b) {
+    return NOT(XOR(a, b));
+}
+*/
+
 
 // Recursively compute set operations (union and intersection are nodes) that correspond to specific sets (leaves)
 std::set<int> computeSetOperation(const Node* root, const std::map<int, std::set<int>>& k_map) {
@@ -764,45 +814,25 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                 // DEBUG:
                                 // std::cout << color << " " << unitig.getUnitigKmer(it_uc.getKmerPosition()).rep().toString() << " " << unitig.getUnitigKmer(it_uc.getKmerPosition()).toString() << " " << it_uc.getKmerPosition() << " " << unitig.strand << std::endl;
                             }
+                            std::string to_append = "";
                             // begin extend 
                             if (opt.extend) {
                                 int color = *superset_colors.begin();
                                 std::unordered_set<std::string> visited;
                                 Extend traversal = extendUnitig(unitig, visited, color, "", superset_colors, k);
-                                std::string to_append = "";
-                                for (int i = unitig.dist + 1; i < unitig.len; ++i) {
-                                    to_append = unitig.getUnitigKmer(i).toString().back();
-                                }
-                                std::string unitig_str = unitig.getUnitigHead().toString() + to_append;
-                                // DEBUG
-                                if (!unitig_str.empty()) {
-                                    oss << ">" << traversal.color << "\n" << unitig_str + traversal.result << "\n";
-                                }
-                                // DEBUG
-                                k_map.clear();
-                                // update k_map with extend results
-                                int last = 0;
-                                for (const auto& pair : k_map) {
-                                    for (const auto& pos : pair.second) {
-                                        last = pos;
-                                    }
-                                }
-                                if (!traversal.result.empty()) {
-                                    for (int i = last; i <= traversal.result.length() + last; ++i) {
-                                        // DEBUG
-                                        //k_map[traversal.color].insert(i);
-                                    }
-                                }
+                                to_append = traversal.result;
+                                
                             }
+                            //std::cout << "to_append: " << to_append << "\n";
                             // end extend
                             // begin bubble
                             if (opt.bubble) {
                                 int color = *superset_colors.begin();
                                 std::unordered_set<std::string> visited;
                                 Bubble result = exploreBubble(ccdbg, unitig, visited, superset_colors, color, k);
-                                if (!result.bubble_left.empty() && !result.variation.empty() && !result.bubble_right.empty() && result.variation.length() > k) {
+                                if (!result.bubble_left.empty() && !result.variation.empty() && !result.bubble_right.empty()) {
                                     const_left_stream << ">" << color << "\n" << result.bubble_left << "\n";
-                                    variation_stream << ">" << color << "\n" << result.variation.substr(0, result.variation.length() - k) << "\n";
+                                    variation_stream << ">" << color << "\n" << result.variation << "\n"; //
                                     const_right_stream << ">" << color << "\n" << result.bubble_right << "\n";
                                 }
                             }
@@ -969,7 +999,6 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                     }
                                 }
                             } // end if !opt.distinguish_union
-
                             // Now, write out what remains among the contigs
                             for (const auto& k_elem : k_map) {
                                 int curr_pos = -1;
@@ -989,7 +1018,9 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                                 colored_contig += km[km.length() - 1];
                                             }
                                             else {
-                                                if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << color_key << "\n" << colored_contig << "\n"; _num_written++; }
+                                                if (colored_contig.length() >= rb && colored_contig.length() <= re) {
+                                                    oss << ">" << color_key << "\n" << colored_contig + to_append << "\n"; _num_written++;
+                                                }
                                                 else _range_discard++;
                                                 colored_contig = km;
                                             }
@@ -997,7 +1028,10 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                         }
                                     }
                                     if (colored_contig != "") {
-                                        if (colored_contig.length() >= rb && colored_contig.length() <= re) { oss << ">" << color_key << "\n" << colored_contig << "\n"; _num_written++; }
+                                        if (colored_contig.length() >= rb && colored_contig.length() <= re) {
+                                            // if opt.extend, then we need to append the traversal.result to the colored_contig
+                                            oss << ">" << color_key << "\n" << colored_contig + to_append << "\n"; _num_written++;
+                                        }
                                         else _range_discard++;
                                     }
                                 }
