@@ -268,7 +268,7 @@ BubblePath bubbleVariations(const ColoredCDBG<void>& ccdbg,
 
 struct Bubble {
     std::string bubble_left;
-    std::string variation;
+    std::map<int, std::string> variation;
     std::string bubble_right;
 };
 
@@ -288,7 +288,7 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
     visited.insert(colored_unitig);
 
     Bubble bubblePath;
-    std::string variation;
+    std::map<int, std::string> variation;
 
     // explore predecessors to find bubble_left
     for (const auto& prev : predecessors) {
@@ -310,11 +310,9 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
         for (; it_next != it_next_end; ++it_next) { colors.insert(it_next.getColorID()); }
         if (colors.find(color) != colors.end()) {
             if (colors.size() > 1 || next.getSuccessors().begin() == next.getSuccessors().end()) { // if multiple colors present or no successors
-                bubblePath.bubble_right = next.getUnitigHead().toString(); // adjust substr to get Head to Tail
-                
+                bubblePath.bubble_right = next.getUnitigHead().toString(); // adjust substr to get Head to Tail                
             }
             else {
-                variation += next.getUnitigHead().toString();
                 Bubble tempResult = exploreBubble(ccdbg, next, visited, superset_colors, color, k);
                 if (!tempResult.bubble_right.empty() && bubblePath.bubble_right.empty()) { bubblePath.bubble_right = tempResult.bubble_right; }
                 if (!tempResult.bubble_left.empty() && bubblePath.bubble_left.empty()) { bubblePath.bubble_left = tempResult.bubble_left; }
@@ -328,18 +326,25 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                     UnitigMap<DataAccessor<void>, DataStorage<void>, false> um_right = ccdbg.find(bubble_right_kmer, false); // terminal node
                     // Found valid start and end unitigs, now find variation 
                     if (!um_left.isEmpty && !um_right.isEmpty) {
-                        BubblePath bubble_path = bubbleVariations(ccdbg, um_left, um_right, superset_colors, color, variation_visited, k);
-                        if (bubble_path.switchKmers) {
-                            auto temp = bubblePath.bubble_left;
-                            bubblePath.bubble_left = bubblePath.bubble_right;
-                            bubblePath.bubble_right = temp;
+                        for (const auto& c : superset_colors) {
+                            BubblePath bubble_path = bubbleVariations(ccdbg, um_left, um_right, superset_colors, c, variation_visited, k);
+                            if (bubble_path.switchKmers) {
+                                auto temp = bubblePath.bubble_left;
+                                bubblePath.bubble_left = bubblePath.bubble_right;
+                                bubblePath.bubble_right = temp;
+                            }
+                            for (const auto& var : bubble_path.variations) {
+                                bubblePath.variation[c] += var;
+                            }
+                            if (!bubblePath.variation[c].empty()) {
+                                if (current.strand) {
+                                    bubblePath.variation[c] = current.getUnitigTail().toString().substr(1) + bubblePath.variation[c].substr(0, bubblePath.variation[c].length() - 1);
+                                }
+                                else {
+                                    bubblePath.variation[c] = current.getUnitigHead().toString().substr(0, k-1) + bubblePath.variation[c].substr(0, bubblePath.variation[c].length() - 1);
+                                }
+                            }
                         }
-                        for (const auto& var : bubble_path.variations) {
-                            bubblePath.variation += var;
-                        }
-                        if (!bubblePath.variation.empty()) {
-                            bubblePath.variation = current.getUnitigTail().toString().substr(1) + bubblePath.variation.substr(0, bubblePath.variation.length() - 1);
-                        }                        
                         return bubblePath;
                     }
                 }
@@ -830,10 +835,12 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                 int color = *superset_colors.begin();
                                 std::unordered_set<std::string> visited;
                                 Bubble result = exploreBubble(ccdbg, unitig, visited, superset_colors, color, k);
-                                if (!result.bubble_left.empty() && !result.variation.empty() && !result.bubble_right.empty()) {
-                                    const_left_stream << ">" << color << "\n" << result.bubble_left << "\n";
-                                    variation_stream << ">" << color << "\n" << result.variation << "\n"; //
-                                    const_right_stream << ">" << color << "\n" << result.bubble_right << "\n";
+                                for (const auto& c : superset_colors) {
+                                    if (!result.bubble_left.empty() && !result.variation[c].empty() && !result.bubble_right.empty()) {
+                                        const_left_stream << ">" << c << "\n" << result.bubble_left << "\n";
+                                        variation_stream << ">" << c << "\n" << result.variation[c] << "\n"; //
+                                        const_right_stream << ">" << c << "\n" << result.bubble_right << "\n";
+                                    }
                                 }
                             }
                             // end bubble
