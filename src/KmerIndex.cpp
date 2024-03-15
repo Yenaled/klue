@@ -272,10 +272,18 @@ BubblePath bubbleVariations(ColoredCDBG<void>& ccdbg,
                 */
                 //std::cout << "str: " << str << "\n";
                 pathResult.variations.push_back(str);
+                std::string temp_str;
                 for (auto& p : pathResult.variations) {
-                    p = std::to_string(current_copy.strand) + p + std::to_string(next.strand);
-                    //std::cout << "pathResult.variations: " << p << "\n";
+                    if (std::any_of(p.begin(), p.end(), [](unsigned char c) { return std::isdigit(c); })) { // if there are already strand tags, add to new string
+                        temp_str = std::to_string(current_copy.strand) + p.substr(1, p.length() - 2) + std::to_string(next.strand);
+                    }
+                    else {
+                        p = std::to_string(current_copy.strand) + p + std::to_string(next.strand);
+                    }
                 }
+                if (!temp_str.empty()) {
+					pathResult.variations.push_back(temp_str);
+				}
                 BubblePath tempResult = bubbleVariations(ccdbg, next, terminal_kmer_copy, superset_colors, color, visited, k);
                 pathResult.variations.insert(pathResult.variations.end(), tempResult.variations.begin(), tempResult.variations.end());
                 if (tempResult.terminalNode) {
@@ -291,7 +299,6 @@ BubblePath bubbleVariations(ColoredCDBG<void>& ccdbg,
 
 struct Bubble {
     std::string bubble_left;
-    //std::unordered_map<int, std::string> variation;
     std::unordered_map<int, std::unordered_map<int, std::string>> variations;
     std::string bubble_right;
 };
@@ -360,33 +367,36 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                             }
                             int i = 0;
                             for (const auto& var : bubble_path.variations) {
-                                //bubblePath.variation[c] = var;
                                 bubblePath.variations[c][i] = var;
                                 i++;
                             }
-                            i = 0;                            
-                            while (!bubblePath.variations[c][i].empty()) {
-                                bool appended = false;
-                                // if last char of current matches first char of next (i.e. same strand), append next to current, and skip next
-                                if (bubblePath.variations[c][i].back() == bubblePath.variations[c][i + 1].front() && !appended) {
-                                    bubblePath.variations[c][i] += bubblePath.variations[c][i + 1];
-                                    appended = true;
-                                    bubblePath.variations[c][i].erase(remove_if(bubblePath.variations[c][i].begin(), bubblePath.variations[c][i].end(), ::isdigit), bubblePath.variations[c][i].end()); // remove strand tags
-                                    if (current.strand) {
-                                        bubblePath.variations[c][i] = current.getUnitigTail().toString().substr(1) + bubblePath.variations[c][i]; //.substr(0, bubblePath.variations[c][i].length() - 1)
+                            int track = 0;
+                            int append = 0;
+                            for (i = 0; !bubblePath.variations[c][i].empty(); ++i) {
+                                // if last char of current matches first char of next (i.e. same strand), append next to current, and skip next                                
+                                if (track = 0) {
+                                    if (bubblePath.variations[c][i].back() == bubblePath.variations[c][i + 1].front()) {
+                                        track = i;
+                                        append = i + 1;
+                                        bubblePath.variations[c][i] += bubblePath.variations[c][i + 1];
                                     }
-                                    else {
-                                        bubblePath.variations[c][i] = current.getUnitigHead().toString().substr(0, k - 1) + bubblePath.variations[c][i];
-                                    }
-                                    //std::cout << "bubblePath.[" << c << "][" << i << "]: " << bubblePath.variations[c][i] << "\n";
-								}
-                                i++;
-							}
-                            for (auto& v : bubblePath.variations[c]) {
-                                if (std::any_of(v.second.begin(), v.second.end(), [](unsigned char c) { return std::isdigit(c); })) { // if any of the characters are digits, remove them
-                                    v.second.clear();
                                 }
-							}
+                                else {
+                                    if (bubblePath.variations[c][track].back() == bubblePath.variations[c][i + 1].front()) {
+                                        bubblePath.variations[c][track] += bubblePath.variations[c][i + 1];
+                                    }
+                                }                                
+                            }
+                            for (i = 0; !bubblePath.variations[c][i].empty(); ++i) {
+                                int s = bubblePath.variations[c][i].front() - '0';
+                                bubblePath.variations[c][i].erase(remove_if(bubblePath.variations[c][i].begin(), bubblePath.variations[c][i].end(), ::isdigit), bubblePath.variations[c][i].end()); // remove strand tags
+                                if (current.strand) {
+                                    bubblePath.variations[c][i] = current.getUnitigTail().toString().substr(1) + bubblePath.variations[c][i].substr(0, bubblePath.variations[c][i].length() - 1); //.substr(0, bubblePath.variations[c][i].length() - 1)
+                                }
+                                else {;
+                                    bubblePath.variations[c][i] = current.getUnitigHead().toString().substr(0, k - 1) + bubblePath.variations[c][i].substr(0, bubblePath.variations[c][i].length() - 1);
+                                }                                                        
+                            }
                         }
                         return bubblePath;
                     }
@@ -879,14 +889,12 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                 std::unordered_set<std::string> visited;
                                 Bubble result = exploreBubble(ccdbg, unitig, visited, superset_colors, color, k);
                                 for (const auto& c : superset_colors) {
-                                    int i = 0;
-                                    while (!result.variations[c][i].empty()) {
-                                        if (!result.bubble_left.empty() && !result.bubble_right.empty()) {
+                                    for (int i = 0; !result.variations[c][i].empty(); ++i) {
+                                        if (!result.bubble_left.empty() && !result.bubble_right.empty() && result.variations[c][i].length() > k - 1) {
                                             const_left_stream << ">" << c << "\n" << result.bubble_left << "\n";
                                             variation_stream << ">" << c << "\n" << result.variations[c][i] << "\n"; //
                                             const_right_stream << ">" << c << "\n" << result.bubble_right << "\n";
                                         }
-                                        i++;
                                     }
                                 }
                             }
