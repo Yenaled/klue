@@ -406,6 +406,7 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                                 }
                             }
                             */
+                            // METHOD 1 (extended)
                             bool concat = true; // Flag to keep track of whether any concatenations were made in the last iteration
                             while (concat) {
                                 concat = false; // Reset flag at the beginning of each iteration
@@ -423,6 +424,39 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                                     }
                                 }
                             }
+                            
+                            /*
+                            std::vector<std::string> concat_vector;
+                            std::string temp_str;
+                            for (i = 0; i < bubblePath.variations[c].size(); ++i) {
+                                if (temp_str.empty()) { temp_str = bubblePath.variations[c][i]; }
+                                else if (!temp_str.empty() && temp_str.back() == bubblePath.variations[c][i].front()) { temp_str += bubblePath.variations[c][i]; }
+                                else { // start new track                                    
+                                    concat_vector.push_back(temp_str);
+                                    temp_str = bubblePath.variations[c][i];
+                                }
+                                // If we're at the last element, ensure to add the current segment
+                                if (i == bubblePath.variations[c].size() - 1) {
+                                    concat_vector.push_back(temp_str);
+                                }
+                            }
+                            for (i = 0; i < concat_vector.size(); ++i) { std::cout << "concat_vector[" << i << "]: " << concat_vector[i] << "\n"; }
+                            */
+                            // METHOD 2 (more conservative)
+                            /*
+                            for (int i = 0; i < bubblePath.variations[c].size(); ++i) {
+                                if (bubblePath.variations[c][i].empty()) { continue; }
+                                for (int j = i + 1; j < bubblePath.variations[c].size(); ++j) {
+                                    if (bubblePath.variations[c][j].empty()) { continue; }
+                                    if (bubblePath.variations[c][i].back() == bubblePath.variations[c][j].front()) {
+                                        bubblePath.variations[c][i] += bubblePath.variations[c][j];
+                                        bubblePath.variations[c][j] = "";
+                                        //break;
+                                    }
+                                }
+                            }
+                            */
+                            
                             for (i = 0; !bubblePath.variations[c][i].empty(); ++i) {
                                 int s = bubblePath.variations[c][i].front() - '0';
                                 bubblePath.variations[c][i].erase(remove_if(bubblePath.variations[c][i].begin(), bubblePath.variations[c][i].end(), ::isdigit), bubblePath.variations[c][i].end()); // remove strand tags
