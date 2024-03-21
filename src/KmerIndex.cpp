@@ -452,6 +452,7 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                                 }
                                 */
                             }
+
                             // print variations using key-value iteration
                             /*
                             for (const auto& pair : bubblePath.variations[c]) { // for each {path : variation}
@@ -471,41 +472,6 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                                 }
                             }
                             */
-                            
-                            // DEBUG: concatenate varitions k>1 to path k=0
-                            /*
-                            for (auto& color : bubblePath.variations) {
-                                int i = color.first;
-                                for (auto& path : color.second) {
-                                    int j = path.first;
-                                    auto& divergence_path = path.second;
-                                    // check if there is an entry for k=0 and any k>0
-                                    bool key = false;
-                                    for (auto& pair : divergence_path) {
-                                        if (pair.first > 0) {
-                                            key = true;
-                                            break;
-                                        }
-                                    }
-                                    if (key && divergence_path.find(0) != divergence_path.end()) {
-                                        // Remove the last two characters of the k=0 entry
-                                        std::string to_prepend = divergence_path[0].substr(0, divergence_path[0].size() - 2);
-                                        std::cout << "to_prepend: " << to_prepend << "\n";
-                                        // Prepend modified k=0 entry to all entries k > 0
-                                        for (auto& pair : divergence_path) {
-                                            std::cout << "pair.second: " << pair.second << "\n";
-                                            int k = pair.first;
-                                            if (k > 0) {
-                                                divergence_path[k] = to_prepend + divergence_path[k];
-                                                std::cout << "divergence_path[" << i << "][" << j << "][" << k << "]: " << divergence_path[k] << "\n";
-                                            }
-                                        }
-                                        // Clear the k=0 entry after processing
-                                        divergence_path[0].clear();
-                                    }
-                                }
-                            }
-                            */
 
                             // prepend common prefix to all divergent paths
                             int cth = 0; int ith = 0; int jth = 0; // change names
@@ -520,17 +486,40 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                                         for (auto& j_pair : bubblePath.variations[c][i]) { // prepend to each variation in path i>0
                                             int j = j_pair.first;
                                             if (!to_prepend.empty() && !bubblePath.variations[c][i][j].empty()) {
-                                                // ADD prepend if last digit of previous and first digit of current are the same
+                                                // METHOD 1 naive prepend
+                                                /*
                                                 bubblePath.variations[c][i][j] = to_prepend + bubblePath.variations[c][i][j];
                                                 cth = c; ith = 0; jth = var.first;
                                                 prepend = true;
+                                                */
+                                                // METHOD 2 check for strand match prepend
+                                                // Take the first character (digit) of bubblePath.variations[c][i][j] and compare it to the last character (digit) of to_prepend;
+                                                // If there is no match, remove the last three characters of to_pretend and comapare again.
+                                                // Repeat until a match is found or to_prepend is empty
+                                                while (!to_prepend.empty() && to_prepend.back() != bubblePath.variations[c][i][j].front()) {
+                                                    // If no match, remove the last 3 characters or set to empty if not possible
+                                                    // currently assuming that snp is cause for mismatch
+                                                    if (to_prepend.size() > 3) {
+                                                        to_prepend.erase(to_prepend.size() - 3);
+													}
+                                                    else {
+                                                        to_prepend.clear();
+														break; // Exit loop if to_prepend is or becomes empty
+													}
+                                                }
+                                                if (!to_prepend.empty()) {
+                                                    bubblePath.variations[c][i][j] = to_prepend + bubblePath.variations[c][i][j];
+                                                    cth = c; ith = 0; jth = var.first;
+                                                    prepend = true;
+                                                }
                                             }
                                         }
                                     }
                                 }                                
                             }
+                            // Remove common prefix from divergent paths
                             if (prepend) { bubblePath.variations[cth][ith][jth].erase(); }
-
+                            // Remove reverse complement duplicates
                             for (int i = 0; i < bubblePath.variations[c].size(); ++i) {
                                 for (int j = 0; j < bubblePath.variations[c][i].size(); ++j) {
                                     bubblePath.variations[c][i][j].erase(remove_if(bubblePath.variations[c][i][j].begin(), bubblePath.variations[c][i][j].end(), ::isdigit), bubblePath.variations[c][i][j].end()); // remove strand tags
@@ -545,9 +534,54 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                                     }
                                 }
                             }
+                            // Check that bubble_left and bubble_right are valid successor/predecessors of the variation
+                            /*                            for (int i = 0; i < bubblePath.variations[c].size(); ++i) {
+                                for (int j = 0; j < bubblePath.variations[c][i].size(); ++j) {
+                                    bubblePath.variations[c][i][j] = bubblePath.variations[c][i][j].substr(0, bubblePath.variations[c][i][j].length() - 1);
+                                    // currently finds SNPs or longer variations -- NO deletions
+                                    // for deletions, do recursive search (try A,T,G,C appended to (k-1)mer and check if it exists in the graph)
+                                    if (bubblePath.variations[c][i][j].length() > k) {
+                                        
+                                        // last (k-1) str.substr(str.length() - (k - 1));
+                                        // first (k-1) str.substr(0, k-1);
+                                        // case 1
+                                        // bubble_left + variation + bubble_right (variation overlaps (k-1)mer with bubble_right), i.e. we want to prepend bubble_left
+                                        if (bubblePath.variations[c][i][j].substr(bubblePath.variations[c][i][j].length() - (k - 1)) == bubblePath.bubble_right.substr(0, k - 1)) {
+                                            Kmer km = Kmer(bubblePath.variations[c][i][j].substr(bubblePath.variations[c][i][j].length() - k).c_str()); // get last kmer
+                                            UnitigMap<DataAccessor<void>, DataStorage<void>, false> um = ccdbg.find(km, false);
+                                            if (!um.isEmpty) {
+                                                for (const auto& next : um.getSuccessors()) {
+                                                    std::cout << "bubblePath.variations[" << c << "][" << i << "][" << j << "]: " << bubblePath.variations[c][i][j] << "\n";
+                                                    if(next.strand){ std::cout << "next: " << next.strand << " " << next.getUnitigHead().toString() << " -> " << next.getUnitigTail().toString() << "\n"; }
+                                                    else { std::cout << "twin: " << !next.strand << " " << next.getUnitigTail().twin().toString() << " -> " << next.getUnitigHead().twin().toString() << "\n"; }
+												}
+                                            }
+                                        }
+                                        // case 2
+                                        // bubble_left + variation + bubble_right (variation overlaps with bubble_left) i.e. we want to prepend bubble_right 
+                                        if (bubblePath.variations[c][i][j].substr(0, k - 1) == bubblePath.bubble_left.substr(bubblePath.bubble_left.length() - (k - 1))){
+                                            Kmer km = Kmer(bubblePath.variations[c][i][j].substr(0, k).c_str()); // get first kmer
+                                            UnitigMap<DataAccessor<void>, DataStorage<void>, false> um = ccdbg.find(km, false);
+                                            if (!um.isEmpty) {
+                                                for (const auto& prev : um.getPredecessors()) {
+                                                    std::cout << "bubblePath.variations[" << c << "][" << i << "][" << j << "]: " << bubblePath.variations[c][i][j] << "\n";
+                                                    if (prev.strand) { std::cout << "prev: " << prev.strand << " " << prev.getUnitigHead().toString() << " -> " << prev.getUnitigTail().toString() << "\n"; }
+                                                    else { std::cout << "twin: " << !prev.strand << " " << prev.getUnitigTail().twin().toString() << " -> " << prev.getUnitigHead().twin().toString() << "\n"; }
+                                                }
+                                            }
+										}
+                                    }
+                                }
+                            }
+                            */
+
+                            // Return result
                             for (int i = 0; i < bubblePath.variations[c].size(); ++i) {
                                 for (int j = 0; j < bubblePath.variations[c][i].size(); ++j) {
-                                    if (bubblePath.variations[c][i][j].length() > k) { // should always be > k, but to prevent substr out of bounds in case -- NOT in the case of deletion -- fix
+                                    bubblePath.variations[c][i][j] = bubblePath.variations[c][i][j].substr(0, bubblePath.variations[c][i][j].length() - 1);
+                                    // currently finds SNPs or longer variations -- NO deletions
+                                    // for deletions, do recursive search (try A,T,G,C appended to (k-1)mer and check if it exists in the graph)
+                                    if (bubblePath.variations[c][i][j].length() > k) { // should always be > k, but to prevent substr out of bounds in case -- NOT in the case of deletion
                                         bubblePath.variations[c][i][j].erase(remove_if(bubblePath.variations[c][i][j].begin(), bubblePath.variations[c][i][j].end(), ::isdigit), bubblePath.variations[c][i][j].end()); // remove strand tags
                                         //std::cout << "bubblePath.variations[" << c << "][" << i << "][" << j << "]: " << bubblePath.variations[c][i][j] << "\n";
                                         Kmer km = Kmer(bubblePath.variations[c][i][j].substr(0, k).c_str()); // get first kmer
@@ -556,30 +590,25 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                                             if (bubblePath.variations[c][i][j].substr(bubblePath.variations[c][i][j].length() - (k - 1)) == um_left.getUnitigTail().twin().toString().substr(1)) {
                                                 // this means that um_left is successor, we want to prepend um_right to the variation
                                                 if (um_right.strand) {
-                                                    bubblePath.variations[c][i][j] = um_right.getUnitigTail().toString().substr(1) + bubblePath.variations[c][i][j].substr(0, bubblePath.variations[c][i][j].length() - 1); //.substr(0, bubblePath.variations[c][i].length() - 1)
+                                                    bubblePath.variations[c][i][j] = um_right.getUnitigTail().toString().substr(1) + bubblePath.variations[c][i][j];
                                                 }
                                                 else {
-                                                    bubblePath.variations[c][i][j] = um_right.getUnitigHead().toString().substr(0, k - 1) + bubblePath.variations[c][i][j].substr(0, bubblePath.variations[c][i][j].length() - 1);
+                                                    bubblePath.variations[c][i][j] = um_right.getUnitigHead().toString().substr(0, k - 1) + bubblePath.variations[c][i][j];
                                                 }
                                             }
                                             else {
                                                 if (um_left.strand) {
-                                                    bubblePath.variations[c][i][j] = um_left.getUnitigTail().toString().substr(1) + bubblePath.variations[c][i][j].substr(0, bubblePath.variations[c][i][j].length() - 1); //.substr(0, bubblePath.variations[c][i].length() - 1)
+                                                    bubblePath.variations[c][i][j] = um_left.getUnitigTail().toString().substr(1) + bubblePath.variations[c][i][j];
                                                 }
                                                 else {
-                                                    bubblePath.variations[c][i][j] = um_left.getUnitigHead().toString().substr(0, k - 1) + bubblePath.variations[c][i][j].substr(0, bubblePath.variations[c][i][j].length() - 1);
+                                                    bubblePath.variations[c][i][j] = um_left.getUnitigHead().toString().substr(0, k - 1) + bubblePath.variations[c][i][j];
                                                 }
                                             }
                                         }
-                                        else {
-                                            if (um_left.strand) {
-                                                bubblePath.variations[c][i][j] = um_left.getUnitigTail().toString().substr(1) + bubblePath.variations[c][i][j].substr(0, bubblePath.variations[c][i][j].length() - 1); //.substr(0, bubblePath.variations[c][i].length() - 1)
-                                            }
-                                            else {
-                                                bubblePath.variations[c][i][j] = um_left.getUnitigHead().toString().substr(0, k - 1) + bubblePath.variations[c][i][j].substr(0, bubblePath.variations[c][i][j].length() - 1);
-                                            }
-                                        }
+                                        // fix
+                                        else { bubblePath.variations[c][i][j].erase(); }
                                     }
+                                    
                                 }
                             }
                         }
