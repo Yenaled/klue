@@ -1079,13 +1079,29 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                             UnitigColors::const_iterator it_uc_end = uc->end();
                             std::map<int, std::set<int>> k_map; // key = color; value = list of positions (i.e. k-mers) along the current unitig (note: a k-mer is a position along a unitig)
                             std::unordered_set<int> superset_colors;
+                            std::map<std::string, std::set<int>> colorsetmap; // Key = Canonical k-mer in string form; Value = Set of colors; Use for the "combinations" workflow
                             for (; it_uc != it_uc_end; ++it_uc) {
                                 superset_colors.insert(it_uc.getColorID());
                                 int color = color_map[it_uc.getColorID()];
                                 k_map[color].insert(it_uc.getKmerPosition());
+				if (opt.distinguish_combinations) colorsetmap[unitig.getUnitigKmer(it_uc.getKmerPosition()).rep().toString()].insert(color);
                                 // DEBUG:
                                 // std::cout << color << " " << unitig.getUnitigKmer(it_uc.getKmerPosition()).rep().toString() << " " << unitig.getUnitigKmer(it_uc.getKmerPosition()).toString() << " " << it_uc.getKmerPosition() << " " << unitig.strand << std::endl;
                             }
+                            if (opt.distinguish_combinations) {
+				    for (auto elem = colorsetmap.begin(); elem != colorsetmap.end(); elem++) {
+					    oss << ">";
+					    std::string color_key = "";
+					    for (auto color : elem->second) {
+						    color_key += std::to_string(color) + "_"; // Set of colors concatenated by underscores
+					    }
+					    if (color_key.size() == 0) color_key = "NULL "; // Should never happen...
+					    color_key.pop_back(); // Remove final underscore
+					    oss << color_key;
+					    oss << "\n";
+					    oss << elem->first << "\n";
+				    }
+			    }
                             std::string to_append = "";
                             // begin extend 
                             if (opt.extend) {
@@ -1279,6 +1295,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                             } // end if !opt.distinguish_union
                             // Now, write out what remains among the contigs
                             for (const auto& k_elem : k_map) {
+				if (opt.distinguish_combinations) break; // Don't need this loop; we're just doing combinations which we have already stored in output stream
                                 int curr_pos = -1;
                                 std::string colored_contig = "";
                                 auto color = k_elem.first;
