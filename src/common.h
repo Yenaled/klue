@@ -49,6 +49,7 @@ struct ProgramOptions {
   bool distinguish_union;
   bool distinguish_combinations;
   bool extend;
+  bool bubble;
   int distinguish_range_begin;
   int distinguish_range_end;
   std::vector<int> kmer_multiplicity;
@@ -65,6 +66,7 @@ ProgramOptions() :
   distinguish_union(false),
   distinguish_combinations(false),
   extend(false),
+  bubble(false),
   distinguish_range_begin(0),
   distinguish_range_end(0),
   min_found_colors(-1),
