@@ -65,7 +65,7 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
   int distinguish_combinations_flag = 0;
   int extension_flag = 0;
   int bubble_flag = 0;
-  const char *opt_string = "o:k:m:t:r:M:g:ps:T:";
+  const char *opt_string = "o:L:R:V:k:m:t:r:M:g:ps:T:";
   static struct option long_options[] = {
     // long args
     {"verbose", no_argument, &verbose_flag, 1},
@@ -76,6 +76,9 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
     {"bubble", no_argument, &bubble_flag, 1},
     // short args
     {"output", required_argument, 0, 'o'},
+    {"left", required_argument, 0, 'L'},
+    {"right", required_argument, 0, 'R'},
+    {"variation", required_argument, 0, 'V'},
     {"pipe", no_argument, &pipe_flag, 'p'},
     {"kmer-size", required_argument, 0, 'k'},
     {"kmer-multiplicity", required_argument, 0, 'M'},
@@ -102,6 +105,25 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
     case 'o': {
       opt.distinguish_output_fasta = optarg;
       break;
+    }
+    case 'L': {
+      opt.bubble_left_output_fasta = optarg;
+	  break;
+	}
+    case 'R': {
+        opt.bubble_right_output_fasta = optarg;
+        break;
+    }
+    case 'V': {
+        std::string str;
+        std::stringstream(optarg) >> str;
+        std::stringstream ss(str);
+        while (ss.good()) {
+            std::string s;
+            getline(ss, s, ',');
+            opt.bubble_variation_output_fasta.push_back(s);
+        }
+        break;
     }
     case 'p': {
       pipe_flag = 1;
@@ -200,7 +222,7 @@ void ParseOptionsRefineUnitigs(int argc, char **argv, ProgramOptions& opt) {
   int pipe_flag = 0;
   int distinguish_all_flag = 0;
   int distinguish_all_but_one_flag = 0;
-  const char *opt_string = "o:k:m:t:r:pT:";
+  const char *opt_string = "o:L:R:V:k:m:t:r:pT:";
   static struct option long_options[] = {
     // long args
     {"verbose", no_argument, &verbose_flag, 1},
@@ -208,6 +230,9 @@ void ParseOptionsRefineUnitigs(int argc, char **argv, ProgramOptions& opt) {
     {"all-but-one", no_argument, &distinguish_all_but_one_flag, 1},
     // short args
     {"output", required_argument, 0, 'o'},
+    {"left", required_argument, 0, 'L'},
+    {"right", required_argument, 0, 'R'},
+    {"variation", required_argument, 0, 'V'},
     {"pipe", no_argument, &pipe_flag, 'p'},
     {"kmer-size", required_argument, 0, 'k'},
     {"min-size", required_argument, 0, 'm'},
@@ -231,6 +256,25 @@ void ParseOptionsRefineUnitigs(int argc, char **argv, ProgramOptions& opt) {
     case 'o': {
       opt.distinguish_output_fasta = optarg;
       break;
+    }
+    case 'L': {
+        opt.bubble_left_output_fasta = optarg;
+        break;
+    }
+    case 'R': {
+        opt.bubble_right_output_fasta = optarg;
+        break;
+    }
+    case 'V': {
+        std::string str;
+        std::stringstream(optarg) >> str;
+        std::stringstream ss(str);
+        while (ss.good()) {
+            std::string s;
+            getline(ss, s, ',');
+            opt.bubble_variation_output_fasta.push_back(s);
+        }
+        break;
     }
     case 'p': {
       pipe_flag = 1;
@@ -297,13 +341,16 @@ void ParseOptionsRefine(int argc, char **argv, ProgramOptions& opt) {
   int verbose_flag = 0;
   int pipe_flag = 0;
   opt.k = 29; // New default for k-mer size
-  const char *opt_string = "o:i:I:t:r:m:k:pT:";
+  const char *opt_string = "o:L:R:V:i:I:t:r:m:k:pT:";
   static struct option long_options[] = {
     // long args
     {"verbose", no_argument, &verbose_flag, 1},
     // short args
     {"output", required_argument, 0, 'o'},
     {"pipe", no_argument, &pipe_flag, 'p'},
+    {"left", required_argument, 0, 'L'},
+    {"right", required_argument, 0, 'R'},
+    {"variation", required_argument, 0, 'V'},
     {"input", required_argument, 0, 'i'},
     {"inner", required_argument, 0, 'I'},
     {"threads", required_argument, 0, 't'},
@@ -328,6 +375,25 @@ void ParseOptionsRefine(int argc, char **argv, ProgramOptions& opt) {
     case 'o': {
       opt.distinguish_output_fasta = optarg;
       break;
+    }
+    case 'L': {
+        opt.bubble_left_output_fasta = optarg;
+        break;
+    }
+    case 'R': {
+        opt.bubble_right_output_fasta = optarg;
+        break;
+    }
+    case 'V': {
+        std::string str;
+        std::stringstream(optarg) >> str;
+        std::stringstream ss(str);
+        while (ss.good()) {
+		  std::string s;
+		  getline(ss, s, ',');
+		  opt.bubble_variation_output_fasta.push_back(s);
+		}
+        break;
     }
     case 'p': {
       pipe_flag = 1;
@@ -439,6 +505,7 @@ bool CheckOptionsDistinguish(ProgramOptions& opt) {
     }
   }
 
+  // TODO file validation for --bubble, also make sure that -V option and #colors agree
   if (opt.distinguish_output_fasta.empty() && !opt.stream_out) {
     cerr << "Error: need to specify output FASTA file name or use --pipe" << endl;
     ret = false;

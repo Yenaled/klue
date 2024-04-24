@@ -37,6 +37,9 @@ struct ProgramOptions {
   bool verbose;
   int threads;
   std::string distinguish_output_fasta;
+  std::string bubble_left_output_fasta;
+  std::string bubble_right_output_fasta;
+  std::vector<std::string> bubble_variation_output_fasta;
   std::string input_fasta_contig;
   std::string map_file;
   std::string input_set_operations;
