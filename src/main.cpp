@@ -65,7 +65,7 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
   int distinguish_combinations_flag = 0;
   int extension_flag = 0;
   int bubble_flag = 0;
-  const char *opt_string = "o:L:R:V:k:m:t:r:M:g:ps:T:";
+  const char *opt_string = "o:L:R:V:k:m:t:r:M:g:ps:T:L:R:V:";
   static struct option long_options[] = {
     // long args
     {"verbose", no_argument, &verbose_flag, 1},
@@ -88,6 +88,9 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
     {"tmp", required_argument, 0, 'T'},
     {"range", required_argument, 0, 'r'},
     {"set", required_argument, 0, 's'},
+    {"left", required_argument, 0, 'L'},
+    {"right", required_argument, 0, 'R'},
+    {"var", required_argument, 0, 'V'},
     {0,0,0,0}
   };
   int c;
@@ -550,6 +553,10 @@ bool CheckOptionsDistinguish(ProgramOptions& opt) {
     cerr << "Error: invalid range supplied" << endl;
     ret = false;
   }
+  if (opt.bubble && opt.bubble_variation_output_fasta.size() != opt.transfasta.size()) {
+    cerr << "Error: Number of var files invalid" << endl;
+    ret = false;
+  }
 
   return ret;
 }
@@ -751,6 +758,11 @@ void usageDistinguish() {
        << "-t, --threads=INT           Number of threads to use (default: 1)" << endl
        << "-m, --min-size=INT          Length of minimizers (default: automatically chosen)" << endl
        << "-T, --tmp=STRING            Directory for temporary files" << endl
+       << "Bubble-specific options:" << endl
+       << "-L, --left=FILE             File to output the left-bubble-end sequences in" << endl
+       << "-R, --right=FILE            File to output the right-bubble-end sequences sequences in" << endl
+       << "-V, --var=STRING            Files (separated by commas) to output the variations (i.e. sequences within bubbles)" << endl
+       << "                            (number of var files should equal number of FASTA-files, i.e. number of colors)" << endl
        << endl;
 
 }

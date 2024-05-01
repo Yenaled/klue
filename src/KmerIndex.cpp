@@ -329,100 +329,102 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
     int color,
     int k,
     std::ostringstream& left_stream,
-    std::ostringstream& var_stream,
+    std::vector<std::string>& var_stream,
     std::ostringstream& right_stream) {
   
 
-    auto successors_ = current.getSuccessors();
-    auto predecessors_ = current.getPredecessors();
-    
-    if (successors_.begin() == successors_.end() && predecessors_.begin() == predecessors_.end()) { return {}; } // Isolated node [no bubble structure]
-
-    // Navigate to the very left anchor of bubble
-    
-    std::unordered_set<Kmer, KmerHash> visited_nodes;
-    std::unordered_set<Kmer, KmerHash> visited_nodes_second_time;
-    std::unordered_set<int> ideal_color_profile;
-    for (int i = 0; i < ccdbg.getColorNames().size(); i++) {
-      ideal_color_profile.insert(i);
-    }
-    Kmer curr_node = current.getUnitigHead();
+  auto successors_ = current.getSuccessors();
+  auto predecessors_ = current.getPredecessors();
   
-    // Do the bubble traversion!
-    std::vector<std::vector<std::vector<std::string>>> path;
-    path.resize(ccdbg.getColorNames().size()); // Resize it to the number of colors
-    std::vector<std::string> tmp_path;
-    traverseBubble(ccdbg, curr_node, path, tmp_path, -1, false, 0, -1, rand(), visited_nodes, visited_nodes_second_time, ideal_color_profile);
-    
-    /*
-    for (int color = 0; color < path.size(); color++) {
-      std::cout << ":COLOR: " << color << std::endl;
-      for (int path_i = 0; path_i < path[color].size(); path_i++) {
-        std::cout << ":::";
-        for (auto x : path[color][path_i]) {
-          std::cout << x << " ";
+  if (successors_.begin() == successors_.end() && predecessors_.begin() == predecessors_.end()) { return {}; } // Isolated node [no bubble structure]
+  
+  // Navigate to the very left anchor of bubble
+  
+  std::unordered_set<Kmer, KmerHash> visited_nodes;
+  std::unordered_set<Kmer, KmerHash> visited_nodes_second_time;
+  std::unordered_set<int> ideal_color_profile;
+  for (int i = 0; i < ccdbg.getColorNames().size(); i++) {
+    ideal_color_profile.insert(i);
+  }
+  Kmer curr_node = current.getUnitigHead();
+  
+  // Do the bubble traversion!
+  std::vector<std::vector<std::vector<std::string>>> path;
+  path.resize(ccdbg.getColorNames().size()); // Resize it to the number of colors
+  std::vector<std::string> tmp_path;
+  traverseBubble(ccdbg, curr_node, path, tmp_path, -1, false, 0, -1, rand(), visited_nodes, visited_nodes_second_time, ideal_color_profile);
+  
+  /*
+   for (int color = 0; color < path.size(); color++) {
+   std::cout << ":COLOR: " << color << std::endl;
+   for (int path_i = 0; path_i < path[color].size(); path_i++) {
+   std::cout << ":::";
+   for (auto x : path[color][path_i]) {
+   std::cout << x << " ";
+   }
+   std::cout << std::endl;
+   }
+   }
+   */
+  
+  for (int color = 0; color < path.size(); color++) {
+    for (int path_i = 0; path_i < path[color].size(); path_i++) {
+      int i = 0;
+      while (i < path[color][path_i].size() - 2) { // stop before the last element
+        auto x = path[color][path_i][i];
+        // first/last element are source/sink
+        // want to stitch together the middle elements
+        std::string x_first = x.substr(0, k - 1); // first (k-1) characters
+        std::string x_last;
+        if (k - 1 > 0 && x.length() >= k - 1) {
+          x_last = x.substr(x.length() - (k - 1)); // last (k-1) characters
         }
-        std::cout << std::endl;
+        
+        auto& next = path[color][path_i][i + 1];
+        std::string next_first = next.substr(0, k - 1);
+        std::string next_last;
+        std::string substr1;
+        std::string substr2;
+        
+        if (k - 1 > 0 && next.length() >= k - 1) {
+          next_last = next.substr(next.length() - (k - 1)); // last (k-1) characters
+          substr1 = next.substr(0, next.length() - (k - 1));
+          substr2 = next.substr(k - 1);
+        }
+        if (x_first == next_last) {
+          std::string stitched_path = substr1 + x;
+          path[color][path_i][i + 1] = stitched_path;
+        }
+        else if (x_last == next_first) {
+          std::string stitched_path = x + substr2;
+          path[color][path_i][i + 1] = stitched_path;
+        }
+        i++;
       }
     }
-    */
-
-    for (int color = 0; color < path.size(); color++) {
-        for (int path_i = 0; path_i < path[color].size(); path_i++) {
-            int i = 0;
-            while (i < path[color][path_i].size() - 2) { // stop before the last element
-                auto x = path[color][path_i][i];
-                // first/last element are source/sink
-                // want to stitch together the middle elements
-                std::string x_first = x.substr(0, k - 1); // first (k-1) characters
-                std::string x_last;
-                if (k - 1 > 0 && x.length() >= k - 1) {
-                    x_last = x.substr(x.length() - (k - 1)); // last (k-1) characters
-                }
-
-                auto& next = path[color][path_i][i + 1];
-                std::string next_first = next.substr(0, k - 1);
-                std::string next_last;
-                std::string substr1;
-                std::string substr2;
-
-                if (k - 1 > 0 && next.length() >= k - 1) {
-                    next_last = next.substr(next.length() - (k - 1)); // last (k-1) characters
-                    substr1 = next.substr(0, next.length() - (k - 1));
-                    substr2 = next.substr(k - 1);
-                }
-                if (x_first == next_last) {
-                    std::string stitched_path = substr1 + x;
-                    path[color][path_i][i + 1] = stitched_path;
-                }
-                else if (x_last == next_first) {
-                    std::string stitched_path = x + substr2;
-                    path[color][path_i][i + 1] = stitched_path;
-                }
-                i++;
-            }
-        }
+  }
+  bool outputted_left_right = false;
+  for (int color = 0; color < path.size(); color++) {
+    //std::cout << ":COLOR: " << color << std::endl;
+    for (int path_i = 0; path_i < path[color].size(); path_i++) {
+      //std::cout << ":::";
+      if (!outputted_left_right) left_stream << ">" << color << "\n" << path[color][path_i][0] << "\n"; // first element
+      var_stream[color] += ">" + std::to_string(color) + "\n" + path[color][path_i][path[color][path_i].size() - 3] + "\n"; // stitched element
+      if (!outputted_left_right) right_stream << ">" << color << "\n" << path[color][path_i].back() << "\n"; // last element
+      outputted_left_right = true; // We only want to output left/right once
+      
+      // DEBUG
+      std::cout << ">" << color << "\n";
+      std::cout << path[color][path_i][0] << " "; // first element
+      std::cout << path[color][path_i][path[color][path_i].size() - 3] << " "; // stitched element
+      std::cout << path[color][path_i].back() << "\n"; // last element
+      
+      //std::cout << std::endl;
+      // return {}; as vector of strings or color:string map
     }
-    for (int color = 0; color < path.size(); color++) {
-        //std::cout << ":COLOR: " << color << std::endl;
-        for (int path_i = 0; path_i < path[color].size(); path_i++) {
-            //std::cout << ":::";
-            left_stream << ">" << color << "\n" << path[color][path_i][0] << "\n"; // first element
-            var_stream << ">" << color << "\n" << path[color][path_i][path[color][path_i].size() - 3] << "\n"; // stitched element
-            right_stream << ">" << color << "\n" << path[color][path_i].back() << "\n"; // last element
-
-            // DEBUG
-            std::cout << ">" << color << "\n";
-            std::cout << path[color][path_i][0] << " "; // first element
-            std::cout << path[color][path_i][path[color][path_i].size() - 3] << " "; // stitched element
-            std::cout << path[color][path_i].back() << "\n"; // last element
-
-            //std::cout << std::endl;
-            // return {}; as vector of strings or color:string map
-        }
-
-    }
-    return {};
+    
+  }
+  return {};
 }
 
 // Begin set operations
@@ -637,6 +639,7 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
     }
     for (auto& of : ofs) (*of).close(); // Close files now that we've outputted everything
     for (auto& of : ofs) delete of; // Free pointer memory
+    
     if (range_discard > 0) {
         std::cerr << "[build] Number of input sequences filtered out due to length: " << range_discard << std::endl;
     }
@@ -819,7 +822,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
     std::cerr << "[build] Extracting k-mers from graph" << std::endl;
     std::streambuf* buf = nullptr;
     std::ofstream of;
-    if (!opt.stream_out) {
+    if (!opt.stream_out && !opt.bubble) {
         of.open(out_file); // Write color contigs into another file
         buf = of.rdbuf();
     }
@@ -853,14 +856,26 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
     }
     // for bubble
     std::mutex mutex_bubbles;
-    std::ofstream const_left_file(opt.bubble_left_output_fasta, std::ofstream::out); // change to user-defined output file
-    std::ofstream variation_file("variation.fa", std::ofstream::out);
-    std::ofstream const_right_file(opt.bubble_right_output_fasta, std::ofstream::out);
-    // file validation
-    if (!const_left_file.is_open() || !variation_file.is_open() || !const_right_file.is_open()) {
+    std::ofstream const_left_file;
+    std::ofstream const_right_file;
+    std::vector<std::ofstream*> var_files;
+    if (opt.bubble) {
+      const_left_file.open(opt.bubble_left_output_fasta);
+      const_right_file.open(opt.bubble_right_output_fasta);
+      for (auto f : opt.bubble_variation_output_fasta) {
+        var_files.push_back(new std::ofstream(f));
+        if (!(*(var_files[var_files.size()-1])).is_open()) {
+          std::cerr << "[WARNING]: Error opening output files." << std::endl;
+          return; // exit
+        }
+      }
+      // file validation
+      if (!const_left_file.is_open() || !const_right_file.is_open()) {
         std::cerr << "[WARNING]: Error opening output files." << std::endl;
         return; // exit
+      }
     }
+    
     // continue with default processing
     // TODO: Reconstruct below
     for (const auto& unitig : ccdbg) { // Iterate through all the unitigs in the de bruijn graph
@@ -874,7 +889,9 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                 workers.emplace_back(
                     [&, u_i] {
                         std::ostringstream oss;
-                        std::ostringstream const_left_stream, variation_stream, const_right_stream; // for bubble                        
+                        std::ostringstream const_left_stream, const_right_stream; // for bubble    
+                        std::vector<std::string> variation_stream; // Since stringstreams are not copyable, just use an ordinary string here
+                        variation_stream.resize(var_files.size()); // Resize it to be the number of colors
                         int _num_written = 0;
                         int _range_discard = 0;
                         for (auto unitig_x : unitigs_v[u_i]) { // Go through unitigs in the batch labeled u_i
@@ -1133,10 +1150,12 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                         }
                         // write bubble results to respective files
                         {
-                            std::unique_lock<std::mutex> lock(mutex_bubbles);
-                            const_left_file << const_left_stream.str();
-                            variation_file << variation_stream.str();
-                            const_right_file << const_right_stream.str();
+                          std::unique_lock<std::mutex> lock(mutex_bubbles);
+                          const_left_file << const_left_stream.str();
+                          for (int i = 0; i < var_files.size(); i++) {
+                            *(var_files[i]) << variation_stream[i]; // Output variation within bubbles
+                          }
+                          const_right_file << const_right_stream.str();
                         }
                         num_written += _num_written;
                         range_discard += _range_discard;
@@ -1151,13 +1170,23 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
         }
     }
     o.flush();
-    const_left_file.flush(); variation_file.flush(); const_right_file.flush(); // for bubble
-    // ADD close files
+    if (opt.bubble) {
+      const_left_file.flush();
+      const_right_file.flush(); // for bubble
+      const_left_file.close();
+      const_right_file.close();
+      // Close bubble files
+      for (auto& of : var_files) {
+        (*of).flush();
+        (*of).close();
+      } // Close files now that we've outputted everything
+      for (auto& of : var_files) delete of; // Free pointer memory
+    }
 
     ccdbg.clear(); // Free memory associated with the colored compact dBG
     ncolors = tmp_files.size(); // Record the number of "colors"
     for (auto tmp_file : tmp_files) std::remove(tmp_file.c_str()); // Remove temp files needed to make colored graph
-    if (!opt.stream_out) {
+    if (!opt.stream_out && !opt.bubble) {
         of.close();
     }
     tmp_files.clear();
