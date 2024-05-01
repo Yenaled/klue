@@ -403,22 +403,25 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
       }
     }
   }
+  bool outputted_left_right = false;
   for (int color = 0; color < path.size(); color++) {
     //std::cout << ":COLOR: " << color << std::endl;
     for (int path_i = 0; path_i < path[color].size(); path_i++) {
       //std::cout << ":::";
-      left_stream << ">" << color << "\n" << path[color][path_i][0] << "\n"; // first element
+      if (!outputted_left_right) left_stream << ">" << color << "\n" << path[color][path_i][0] << "\n"; // first element
       var_stream[color] += ">" + std::to_string(color) + "\n" + path[color][path_i][path[color][path_i].size() - 3] + "\n"; // stitched element
-      right_stream << ">" << color << "\n" << path[color][path_i].back() << "\n"; // last element
+      if (!outputted_left_right) right_stream << ">" << color << "\n" << path[color][path_i].back() << "\n"; // last element
+      outputted_left_right = true; // We only want to output left/right once
       
       // DEBUG
       //std::cout << ">" << color << "\n";
       //std::cout << path[color][path_i][0] << " "; // first element
       //std::cout << path[color][path_i][path[color][path_i].size() - 3] << " "; // stitched element
-      //std::cout << path[color][path_i].back() << "\n"; // last element    
-
+      //std::cout << path[color][path_i].back() << "\n"; // last element
+      //
       // return {}; as vector of strings or color:string map
-    }    
+    }
+    
   }
   return {};
 }
