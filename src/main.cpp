@@ -550,7 +550,10 @@ bool CheckOptionsDistinguish(ProgramOptions& opt) {
     cerr << "Error: invalid range supplied" << endl;
     ret = false;
   }
-
+  if (opt.bubble && opt.bubble_variation_output_fasta.size() != opt.transfasta.size()) {
+      cerr << "Error: Number of var files invalid" << endl;
+      ret = false;
+  }
   return ret;
 }
 
@@ -751,6 +754,11 @@ void usageDistinguish() {
        << "-t, --threads=INT           Number of threads to use (default: 1)" << endl
        << "-m, --min-size=INT          Length of minimizers (default: automatically chosen)" << endl
        << "-T, --tmp=STRING            Directory for temporary files" << endl
+       << "Bubble-specific options:" << endl
+       << "-L, --left=FILE             File to output the left-bubble-end sequences in" << endl
+       << "-R, --right=FILE            File to output the right-bubble-end sequences sequences in" << endl
+       << "-V, --var=STRING            Files (separated by commas) to output the variations (i.e. sequences within bubbles)" << endl
+       << "                            (number of var files should equal number of FASTA-files, i.e. number of colors)" << endl
        << endl;
 
 }
