@@ -37,6 +37,9 @@ struct ProgramOptions {
   bool verbose;
   int threads;
   std::string distinguish_output_fasta;
+  std::string bubble_left_output_fasta;
+  std::string bubble_right_output_fasta;
+  std::vector<std::string> bubble_variation_output_fasta;
   std::string input_fasta_contig;
   std::string map_file;
   std::string input_set_operations;
@@ -49,6 +52,7 @@ struct ProgramOptions {
   bool distinguish_union;
   bool distinguish_combinations;
   bool extend;
+  bool bubble;
   int distinguish_range_begin;
   int distinguish_range_end;
   std::vector<int> kmer_multiplicity;
@@ -65,6 +69,7 @@ ProgramOptions() :
   distinguish_union(false),
   distinguish_combinations(false),
   extend(false),
+  bubble(false),
   distinguish_range_begin(0),
   distinguish_range_end(0),
   min_found_colors(-1),
