@@ -160,7 +160,7 @@ cmdexec "$klue version"
 
 # Sanity check the bubble testing infrastructure
 
-o="$test_dir"
+o="$test_dir/expected_output"
 fail="1"
 check_fasta_files "$o/dummy_1_L.fa" "$o/dummy_1_V.fa" "$o/dummy_1_R.fa" "$o/dummy_2_L.fa" "$o/dummy_2_V.fa" "$o/dummy_2_R.fa"
 check_fasta_files "$o/dummy_1_R.fa" "$o/dummy_1_V.fa" "$o/dummy_1_L.fa" "$o/dummy_2_L.fa" "$o/dummy_2_V.fa" "$o/dummy_2_R.fa"
