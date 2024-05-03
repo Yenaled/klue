@@ -403,25 +403,23 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
       }
     }
   }
+  std::string header;
+  for (int color = 0; color < path.size(); color++) {
+      header += std::to_string(color);
+      if (color != path.size() - 1) { header += "_"; }
+  }
+
   bool outputted_left_right = false;
   for (int color = 0; color < path.size(); color++) {
     //std::cout << ":COLOR: " << color << std::endl;
-    for (int path_i = 0; path_i < path[color].size(); path_i++) {
-      //std::cout << ":::";
-      if (!outputted_left_right) left_stream << ">" << color << "\n" << path[color][path_i][0] << "\n"; // first element
-      var_stream[color] += ">" + std::to_string(color) + "\n" + path[color][path_i][path[color][path_i].size() - 3] + "\n"; // stitched element
-      if (!outputted_left_right) right_stream << ">" << color << "\n" << path[color][path_i].back() << "\n"; // last element
-      outputted_left_right = true; // We only want to output left/right once
-      
-      // DEBUG
-      //std::cout << ">" << color << "\n";
-      //std::cout << path[color][path_i][0] << " "; // first element
-      //std::cout << path[color][path_i][path[color][path_i].size() - 3] << " "; // stitched element
-      //std::cout << path[color][path_i].back() << "\n"; // last element
-      //
-      // return {}; as vector of strings or color:string map
-    }
-    
+      if (var_stream.size() == 1) { header = color; }
+      for (int path_i = 0; path_i < path[color].size(); path_i++) {
+          //std::cout << ":::";
+          if (!outputted_left_right) { left_stream << ">" << header << "\n" << path[color][path_i][0] << "\n"; }// first element
+          var_stream[color] += ">" + std::to_string(color) + "\n" + path[color][path_i][path[color][path_i].size() - 3] + "\n"; // stitched element
+          if (!outputted_left_right) { right_stream << ">" << header << "\n" << path[color][path_i].back() << "\n"; }// last element
+          outputted_left_right = true; // We only want to output left/right once
+      }
   }
   return {};
 }
@@ -439,8 +437,6 @@ std::vector<std::string> split(const std::string& s, char delimiter) {
 }
 
 // switch to NAND boolean logic
-
-
 /*
 
 "not" : NOT(A) = A NAND A
@@ -483,7 +479,6 @@ bool XNOR(bool a, bool b) {
     return NOT(XOR(a, b));
 }
 */
-
 
 // Recursively compute set operations (union and intersection are nodes) that correspond to specific sets (leaves)
 std::set<int> computeSetOperation(const Node* root, const std::map<int, std::set<int>>& k_map) {
