@@ -172,7 +172,7 @@ check_fasta_files "$o/dummy_1revcomp_L.fa" "$o/dummy_1_V.fa" "$o/dummy_1_L.fa" "
 
 # Test basic run (note: we only check wc -c, i.e. number of characters, because we don't want to deal with +/- unitig strand issues)
 checkcmdoutput "$klue distinguish -t 1 -M 1,1 -p $test_dir/test_1.fq.gz $test_dir/test_2.fq.gz|wc -c|tr -d ' '" 96a9f3ee62e50cdc0f6e4afe6fef0ce9
-checkcmdoutput "$klue distinguish -t 1 -M 1,1 -p $test_dir/test_1.fq $test_dir/test_2.fq|wc -c|tr -d ' '" 96a9f3ee62e50cdc0f6e4afe6fef0ce9
+checkcmdoutput "$klue distinguish -t 1 -M 1,1 -p $test_dir/test_x.fq $test_dir/test_y.fq|wc -c|tr -d ' '" 6776bea99422aaee00e734d19221642d
 checkcmdoutput "cat $o/dummy_1_L.fa |wc -c|tr -d ' '" 84bc3da1b3e33a18e8d5e1bdd7a18d7a
 
 # The next tests don't work
