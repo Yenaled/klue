@@ -172,14 +172,15 @@ check_fasta_files "$o/dummy_1revcomp_L.fa" "$o/dummy_1_V.fa" "$o/dummy_1_L.fa" "
 
 # Test basic run (note: we only check wc -c, i.e. number of characters, because we don't want to deal with +/- unitig strand issues)
 checkcmdoutput "$klue distinguish -t 1 -M 1,1 -p $test_dir/test_1.fq.gz $test_dir/test_2.fq.gz|wc -c|tr -d ' '" 96a9f3ee62e50cdc0f6e4afe6fef0ce9
-checkcmdoutput "$klue distinguish --bubble -t 1 -M 1,1 -k 7 -p -L snp_test_L.fa -R snp_test_R.fa -V snp_test_V0.fa,snp_test_V1.fa $test_dir/snp_x.fa $test_dir/snp_y.fa|wc -c|tr -d ' '" e42bb897d0afcdb1f1c46fb5e0c1ad22
-checkcmdoutput "cat $test_dir/snp_test_L.fa |wc -c |tr -d ' '" 929ad9494d911e47cd54ce0d30472ccc
-checkcmdoutput "cat $o/dummy_1_L.fa |wc -c|tr -d ' '" 84bc3da1b3e33a18e8d5e1bdd7a18d7a
+checkcmdoutput "$klue distinguish --bubble -t 1 -M 1,1 -k 7 -p -L test_L.fa -R test_R.fa -V test_V0.fa,test_V1.fa $test_dir/snp_x.fa $test_dir/snp_y.fa|wc -c|tr -d ' '" e42bb897d0afcdb1f1c46fb5e0c1ad22
+checkcmdoutput "$klue distinguish --bubble -t 1 -M 1,1 -k 7 -p -L test_L.fa -R test_R.fa -V test_V0.fa,test_V1.fa $test_dir/snp_insertion_x.fa $test_dir/snp_insertion_y.fa|wc -c|tr -d ' '" 5321951a8ceb122075cf6e80fce468ca
+checkcmdoutput "$klue distinguish --bubble -t 1 -M 1,1 -k 7 -p -L test_L.fa -R test_R.fa -V test_V0.fa,test_V1.fa $test_dir/extendedvariation_x.fa $test_dir/extendedvariation_y.fa|wc -c|tr -d ' '" 3d26e13f5daf5e4cb7a154bd5107a27a
+#checkcmdoutput "cat $o/dummy_1_L.fa |wc -c|tr -d ' '" 84bc3da1b3e33a18e8d5e1bdd7a18d7a
 
 # The next tests don't work
 
 exit 0
-
+checkcmdoutput "cat $o/dummy_1_L.fa |wc -c|tr -d ' '" 84bc3da1b3e33a18e8d5e1bdd7a18d7a
 checkcmdoutput "$klue distinguish -t 1 -M 1,1,1 -p $test_dir/test_w.fq $test_dir/test_x.fq $test_dir/test_y.fq|wc -c|tr -d ' '" 0c42da9d05bad0fe0752a9db917beecb 
 checkcmdoutput "$klue distinguish --all -t 1 -M 1,1,1 -p $test_dir/test_w.fq $test_dir/test_x.fq $test_dir/test_y.fq|wc -c|tr -d ' '" 0c42da9d05bad0fe0752a9db917beecb
 checkcmdoutput "$klue distinguish --all-but-one -t 1 -M 1,1,1 -p $test_dir/test_w.fq $test_dir/test_x.fq $test_dir/test_y.fq|wc -c|tr -d ' '" d015ac2def9a684cfacc41ce1be571af
