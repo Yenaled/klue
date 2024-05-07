@@ -235,6 +235,7 @@ void traverseBubble(ColoredCDBG<void>& ccdbg,
   
   for (; it_uc != uc_end; ++it_uc) { // TODO: this is what we need to navigate well
     Kmer km = current.getUnitigKmer(it_uc.getKmerPosition());
+    //std::cout << km.toString() << " , ";
     kmers_color_map[km.rep()].insert(it_uc.getColorID());
   }
   if (cycle == 0) {
@@ -353,9 +354,10 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
   path.resize(ccdbg.getColorNames().size()); // Resize it to the number of colors
   std::vector<std::string> tmp_path;
   traverseBubble(ccdbg, curr_node, path, tmp_path, -1, false, 0, -1, rand(), visited_nodes, visited_nodes_second_time, ideal_color_profile);
-  
-   /*
-   for (int color = 0; color < path.size(); color++) {
+
+  /*
+  for (int color = 0; color < path.size(); color++) {
+       if (path[color].size() == 0) { continue; }
        std::cout << path[color].size() << std::endl;
        std::cout << ":COLOR: " << color << std::endl;
        for (int path_i = 0; path_i < path[color].size(); path_i++) {
@@ -367,10 +369,8 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
        }
    }
    */
-   
   
   for (int color = 0; color < path.size(); color++) {
-    /*
     for (int path_i = 0; path_i < path[color].size(); path_i++) {
       int i = 0;
       while (i < path[color][path_i].size() - 2) { // stop before the last element
@@ -405,43 +405,8 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
         i++;
       }
     }
-    */
-      // only consider the first path (other paths are not valid left/right match)
-      if (path[color].size() > 1) {
-          int i = 0;
-          while (i < path[color][0].size() - 2) { // stop before the last element
-              auto x = path[color][0][i];
-              // first/last element are source/sink
-              // want to stitch together the middle elements
-              std::string x_first = x.substr(0, k - 1); // first (k-1) characters
-              std::string x_last;
-              if (k - 1 > 0 && x.length() >= k - 1) {
-                  x_last = x.substr(x.length() - (k - 1)); // last (k-1) characters
-              }
-
-              auto& next = path[color][0][i + 1];
-              std::string next_first = next.substr(0, k - 1);
-              std::string next_last;
-              std::string substr1;
-              std::string substr2;
-
-              if (k - 1 > 0 && next.length() >= k - 1) {
-                  next_last = next.substr(next.length() - (k - 1)); // last (k-1) characters
-                  substr1 = next.substr(0, next.length() - (k - 1));
-                  substr2 = next.substr(k - 1);
-              }
-              if (x_first == next_last) {
-                  std::string stitched_path = substr1 + x;
-                  path[color][0][i + 1] = stitched_path;
-              }
-              else if (x_last == next_first) {
-                  std::string stitched_path = x + substr2;
-                  path[color][0][i + 1] = stitched_path;
-              }
-              i++;
-          }
-      }
   }
+
   std::string header;
   for (int color = 0; color < path.size(); color++) {
       header += std::to_string(color);
@@ -454,10 +419,19 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
       if (var_stream.size() == 1) { header = color; }
       for (int path_i = 0; path_i < path[color].size(); path_i++) {
           //std::cout << ":::";
-          if (!outputted_left_right) { left_stream << ">" << header << "\n" << path[color][path_i][0] << "\n"; }// first element
-          var_stream[color] += ">" + std::to_string(color) + "\n" + path[color][path_i][path[color][path_i].size() - 3] + "\n"; // stitched element
-          if (!outputted_left_right) { right_stream << ">" << header << "\n" << path[color][path_i].back() << "\n"; }// last element
-          outputted_left_right = true; // We only want to output left/right once
+          for (int other_color = 0; other_color < path.size(); other_color++) {              
+              if (color != other_color) { // Avoid checking the same color against itself
+                  if (path[other_color].size() <= path_i) { continue; }
+                  // only output if right and left are the same for both (LATER: all?) colors 
+                  if (path[color][path_i][0] == path[other_color][path_i][0] && path[color][path_i].back() == path[other_color][path_i].back()) {
+                      if (!outputted_left_right) { left_stream << ">" << header << "\n" << path[color][path_i][0] << "\n"; }// first element
+                      var_stream[color] += ">" + std::to_string(color) + "\n" + path[color][path_i][path[color][path_i].size() - 3] + "\n"; // stitched element
+                      if (!outputted_left_right) { right_stream << ">" << header << "\n" << path[color][path_i].back() << "\n"; }// last element
+                      outputted_left_right = true; // We only want to output left/right once
+                  }
+              }              
+          }
+          
       }
   }
   return {};
