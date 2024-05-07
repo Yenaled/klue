@@ -354,20 +354,23 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
   std::vector<std::string> tmp_path;
   traverseBubble(ccdbg, curr_node, path, tmp_path, -1, false, 0, -1, rand(), visited_nodes, visited_nodes_second_time, ideal_color_profile);
   
-  /*
+   /*
    for (int color = 0; color < path.size(); color++) {
-   std::cout << ":COLOR: " << color << std::endl;
-   for (int path_i = 0; path_i < path[color].size(); path_i++) {
-   std::cout << ":::";
-   for (auto x : path[color][path_i]) {
-   std::cout << x << " ";
-   }
-   std::cout << std::endl;
-   }
+       std::cout << path[color].size() << std::endl;
+       std::cout << ":COLOR: " << color << std::endl;
+       for (int path_i = 0; path_i < path[color].size(); path_i++) {
+           std::cout << ":::";
+           for (auto x : path[color][path_i]) {
+               std::cout << x << " ";
+           }
+           std::cout << std::endl;
+       }
    }
    */
+   
   
   for (int color = 0; color < path.size(); color++) {
+    /*
     for (int path_i = 0; path_i < path[color].size(); path_i++) {
       int i = 0;
       while (i < path[color][path_i].size() - 2) { // stop before the last element
@@ -402,6 +405,42 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
         i++;
       }
     }
+    */
+      // only consider the first path (other paths are not valid left/right match)
+      if (path[color].size() > 1) {
+          int i = 0;
+          while (i < path[color][0].size() - 2) { // stop before the last element
+              auto x = path[color][0][i];
+              // first/last element are source/sink
+              // want to stitch together the middle elements
+              std::string x_first = x.substr(0, k - 1); // first (k-1) characters
+              std::string x_last;
+              if (k - 1 > 0 && x.length() >= k - 1) {
+                  x_last = x.substr(x.length() - (k - 1)); // last (k-1) characters
+              }
+
+              auto& next = path[color][0][i + 1];
+              std::string next_first = next.substr(0, k - 1);
+              std::string next_last;
+              std::string substr1;
+              std::string substr2;
+
+              if (k - 1 > 0 && next.length() >= k - 1) {
+                  next_last = next.substr(next.length() - (k - 1)); // last (k-1) characters
+                  substr1 = next.substr(0, next.length() - (k - 1));
+                  substr2 = next.substr(k - 1);
+              }
+              if (x_first == next_last) {
+                  std::string stitched_path = substr1 + x;
+                  path[color][0][i + 1] = stitched_path;
+              }
+              else if (x_last == next_first) {
+                  std::string stitched_path = x + substr2;
+                  path[color][0][i + 1] = stitched_path;
+              }
+              i++;
+          }
+      }
   }
   std::string header;
   for (int color = 0; color < path.size(); color++) {
