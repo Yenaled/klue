@@ -42,30 +42,6 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/expected_output/dummy_2revcomp_V.fa
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/expected_output/dummy_2_R.fa
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/expected_output)
 
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/expected_output/snp_1_L.fa
-     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/expected_output)
-
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/expected_output/snp_1_V.fa
-     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/expected_output)
-
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/expected_output/snp_1_R.fa
-     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/expected_output)
-
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/expected_output/snp_1revcomp_L.fa
-     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/expected_output)
-
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/expected_output/snp_2_L.fa
-     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/expected_output)
-
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/expected_output/snp_2_V.fa
-     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/expected_output)
-
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/expected_output/snp_2revcomp_V.fa
-     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/expected_output)
-
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/expected_output/snp_2_R.fa
-     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/expected_output)
-
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/snp_x.fa
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
