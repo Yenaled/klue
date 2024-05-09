@@ -210,6 +210,7 @@ void traverseBubble(ColoredCDBG<void>& ccdbg,
                               int cycle,
                               int prev_strand,
                               int rand_id,
+                              int k,
                               std::unordered_set<Kmer, KmerHash> visited_nodes,
                               std::unordered_set<Kmer, KmerHash> visited_nodes_second_time,
                               const std::unordered_set<int>& ideal_color_profile) {
@@ -235,7 +236,6 @@ void traverseBubble(ColoredCDBG<void>& ccdbg,
   
   for (; it_uc != uc_end; ++it_uc) { // TODO: this is what we need to navigate well
     Kmer km = current.getUnitigKmer(it_uc.getKmerPosition());
-    //std::cout << km.toString() << " , ";
     kmers_color_map[km.rep()].insert(it_uc.getColorID());
   }
   if (cycle == 0) {
@@ -293,9 +293,18 @@ void traverseBubble(ColoredCDBG<void>& ccdbg,
       } else if (current_color != color_profile) {
         return; // Oops, ran into a color switch (aka a "dead end"), just return without updating anything
       }
+      // if prev_strand, _km = kmer.twin().toString(); else _km = kmer.toString();
       std::string _km = prev_strand ? kmer.twin().toString() : kmer.toString();
       if (contig == "") contig = _km;
-      else contig += _km[_km.length() - 1];
+      else {
+          // if last (k-1) of _km and first (k-1) of contig are the same, we want to take the first character of _km and append it to contig
+          if (_km.substr(1) == contig.substr(0, k - 1)) contig = _km[0] + contig;
+          // if last (k-1) of _km and last (k-1) of contig are the same, we want to take the last character of _km and append it to contig
+          else contig += _km[k - 1]; // _km.length() = k
+      }
+      //DEBUG
+      //std::cout << "_km    = " << _km << " " << _km.substr(0,k-1) << " " << _km.substr(1) << " " << std::endl;
+      //std::cout << "contig = " << contig << " " << contig.substr(0,k-1) << " " << contig.substr(contig.length()-(k-1)) << " " << std::endl;
     }
   
   if (contig != "" && start) tmp_path.push_back(contig);
@@ -313,13 +322,13 @@ void traverseBubble(ColoredCDBG<void>& ccdbg,
   for (const auto& successor : successors) {
     bool move_next = true;
     Kmer next_kmer = curr_node;
-    if (true) traverseBubble(ccdbg, successor.getUnitigHead(), path, tmp_path, color, start, cycle, successor.strand, rand_id, visited_nodes, visited_nodes_second_time, ideal_color_profile);
+    if (true) traverseBubble(ccdbg, successor.getUnitigHead(), path, tmp_path, color, start, cycle, successor.strand, rand_id, k, visited_nodes, visited_nodes_second_time, ideal_color_profile);
   }
   for (const auto& predecessor : predecessors) {
     break; // Don't do predecessors? 
     bool move_next = true;
     Kmer next_kmer = curr_node;
-    if (move_next) traverseBubble(ccdbg, predecessor.getUnitigHead(), path, tmp_path, color, start, cycle, predecessor.strand, rand_id, visited_nodes, visited_nodes_second_time, ideal_color_profile);
+    if (move_next) traverseBubble(ccdbg, predecessor.getUnitigHead(), path, tmp_path, color, start, cycle, predecessor.strand, rand_id, k, visited_nodes, visited_nodes_second_time, ideal_color_profile);
   }
 }
 
@@ -353,23 +362,29 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
   std::vector<std::vector<std::vector<std::string>>> path;
   path.resize(ccdbg.getColorNames().size()); // Resize it to the number of colors
   std::vector<std::string> tmp_path;
-  traverseBubble(ccdbg, curr_node, path, tmp_path, -1, false, 0, -1, rand(), visited_nodes, visited_nodes_second_time, ideal_color_profile);
+  traverseBubble(ccdbg, curr_node, path, tmp_path, -1, false, 0, -1, rand(), k, visited_nodes, visited_nodes_second_time, ideal_color_profile);
 
   /*
   for (int color = 0; color < path.size(); color++) {
        if (path[color].size() == 0) { continue; }
-       std::cout << path[color].size() << std::endl;
        std::cout << ":COLOR: " << color << std::endl;
        for (int path_i = 0; path_i < path[color].size(); path_i++) {
-           std::cout << ":::";
-           for (auto x : path[color][path_i]) {
-               std::cout << x << " ";
-           }
-           std::cout << std::endl;
+           for (int other_color = 0; other_color < path.size(); other_color++) {
+               if (color != other_color) { // Avoid checking the same color against itself
+                   if (path[other_color].size() <= path_i) { continue; }
+                   if (path[color][path_i][0] == path[other_color][path_i][0] && path[color][path_i].back() == path[other_color][path_i].back()) {
+                       std::cout << ":::";
+                       for (auto x : path[color][path_i]) {
+                           std::cout << x << " ";
+                       }
+                       std::cout << std::endl;
+                   }
+               }
+           }           
        }
    }
-   */
-  
+  */
+
   for (int color = 0; color < path.size(); color++) {
     for (int path_i = 0; path_i < path[color].size(); path_i++) {
       int i = 0;
@@ -384,7 +399,7 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
         }
         
         auto& next = path[color][path_i][i + 1];
-        std::string next_first = next.substr(0, k - 1);
+        std::string next_first = next.substr(0, k - 1); // first (k-1) characters
         std::string next_last;
         std::string substr1;
         std::string substr2;
