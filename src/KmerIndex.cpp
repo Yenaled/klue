@@ -441,10 +441,8 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                   // only output if right and left are the same for both (LATER: all?) colors 
                   if (path[color][path_i][0] == path[other_color][path_i][0] && path[color][path_i].back() == path[other_color][path_i].back()) {
                       if (!outputted_left_right) left_stream << ">" << header << "\n" << path[color][path_i][0] << "\n"; // first element
-                      if (!outputted_color) {
-                          var_stream[color] += ">" + std::to_string(color) + "\n" + path[color][path_i][path[color][path_i].size() - 3] + "\n"; // stitched element
-                          outputted_color = true;
-                      }
+                      if (!outputted_color)  var_stream[color] += ">" + std::to_string(color) + "\n" + path[color][path_i][path[color][path_i].size() - 3] + "\n"; // stitched element
+                      outputted_color = true;
                       if (!outputted_left_right) right_stream << ">" << header << "\n" << path[color][path_i].back() << "\n"; // last element
                       outputted_left_right = true; // We only want to output left/right once
                   }
