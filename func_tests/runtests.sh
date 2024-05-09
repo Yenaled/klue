@@ -168,7 +168,11 @@ check_fasta_files "$o/dummy_1_R.fa" "$o/dummy_1_V.fa" "$o/dummy_1revcomp_L.fa" "
 check_fasta_files "$o/dummy_1_L.fa" "$o/dummy_1_V.fa" "$o/dummy_1_L.fa" "$o/dummy_2_L.fa" "$o/dummy_2_V.fa" "$o/dummy_2_R.fa" $fail
 check_fasta_files "$o/dummy_1revcomp_L.fa" "$o/dummy_1_V.fa" "$o/dummy_1_L.fa" "$o/dummy_2_L.fa" "$o/dummy_2_V.fa" "$o/dummy_2_R.fa" $fail
 
-
+check_fasta_files "$o/snp_1_L.fa" "$o/snp_1_V.fa" "$o/snp_1_R.fa" "$o/snp_2_L.fa" "$o/snp_2_V.fa" "$o/snp_2_R.fa"
+check_fasta_files "$o/snp_1_R.fa" "$o/snp_1_V.fa" "$o/snp_1_L.fa" "$o/snp_2_L.fa" "$o/snp_2_V.fa" "$o/snp_2_R.fa"
+check_fasta_files "$o/snp_1_R.fa" "$o/snp_1_V.fa" "$o/snp_1revcomp_L.fa" "$o/snp_2_L.fa" "$o/snp_2revcomp_V.fa" "$o/snp_2_R.fa"
+check_fasta_files "$o/snp_1_L.fa" "$o/snp_1_V.fa" "$o/snp_1_L.fa" "$o/snp_2_L.fa" "$o/snp_2_V.fa" "$o/snp_2_R.fa" $fail
+check_fasta_files "$o/snp_1revcomp_L.fa" "$o/snp_1_V.fa" "$o/snp_1_L.fa" "$o/snp_2_L.fa" "$o/snp_2_V.fa" "$o/snp_2_R.fa" $fail
 
 # Test basic run (note: we only check wc -c, i.e. number of characters, because we don't want to deal with +/- unitig strand issues)
 checkcmdoutput "$klue distinguish -t 1 -M 1,1 -p $test_dir/test_1.fq.gz $test_dir/test_2.fq.gz|wc -c|tr -d ' '" 96a9f3ee62e50cdc0f6e4afe6fef0ce9
