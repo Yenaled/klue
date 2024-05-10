@@ -302,7 +302,6 @@ void traverseBubble(ColoredCDBG<void>& ccdbg,
           // if last (k-1) of _km and last (k-1) of contig are the same, we want to take the last character of _km and append it to contig
           else contig += _km[k - 1]; // _km.length() = k
       }
-      //DEBUG
       //std::cout << "_km    = " << _km << " " << _km.substr(0,k-1) << " " << _km.substr(1) << " " << std::endl;
       //std::cout << "contig = " << contig << " " << contig.substr(0,k-1) << " " << contig.substr(contig.length()-(k-1)) << " " << std::endl;
     }
@@ -363,27 +362,6 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
   path.resize(ccdbg.getColorNames().size()); // Resize it to the number of colors
   std::vector<std::string> tmp_path;
   traverseBubble(ccdbg, curr_node, path, tmp_path, -1, false, 0, -1, rand(), k, visited_nodes, visited_nodes_second_time, ideal_color_profile);
-  
-  /*
-  for (int color = 0; color < path.size(); color++) {
-       if (path[color].size() == 0) { continue; }
-       std::cout << ":COLOR: " << color << std::endl;
-       for (int path_i = 0; path_i < path[color].size(); path_i++) {
-           for (int other_color = 0; other_color < path.size(); other_color++) {
-               if (color != other_color) { // Avoid checking the same color against itself
-                   if (path[other_color].size() <= path_i) { continue; }
-                   if (path[color][path_i][0] == path[other_color][path_i][0] && path[color][path_i].back() == path[other_color][path_i].back()) {
-                       std::cout << ":::";
-                       for (auto x : path[color][path_i]) {
-                           std::cout << x << " ";
-                       }
-                       std::cout << std::endl;
-                   }
-               }
-           }           
-       }
-   }
-   */  
 
   for (int color = 0; color < path.size(); color++) {
     for (int path_i = 0; path_i < path[color].size(); path_i++) {
@@ -422,35 +400,60 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
     }
   }
 
+  /*
+ for (int color = 0; color < path.size(); color++) {
+      if (path[color].size() == 0) { continue; }
+      std::cout << ":COLOR: " << color << std::endl;
+      for (int path_i = 0; path_i < path[color].size(); path_i++) {
+          for (int other_color = 0; other_color < path.size(); other_color++) {
+              if (color != other_color) { // Avoid checking the same color against itself
+                  if (path[other_color].size() <= path_i) { continue; }
+                  if (path[color][path_i][0] == path[other_color][path_i][0] && path[color][path_i].back() == path[other_color][path_i].back()) {
+                      std::cout << ":::";
+                      for (auto x : path[color][path_i]) {
+                          std::cout << x << " ";
+                      }
+                      std::cout << std::endl;
+                  }
+              }
+          }
+      }
+  }
+  */
+
   std::string header;
   for (int color = 0; color < path.size(); color++) {
       header += std::to_string(color);
       if (color != path.size() - 1) { header += "_"; }
   }
-
+  
   bool outputted_left_right = false;
   for (int color = 0; color < path.size(); color++) {
       bool outputted_color = false;
-    //std::cout << ":COLOR: " << color << std::endl;
+      if (path[color].empty()) { continue; }
       if (var_stream.size() == 1) { header = color; }
       for (int path_i = 0; path_i < path[color].size(); path_i++) {
-          //std::cout << ":::";
-          for (int other_color = 0; other_color < path.size(); other_color++) {              
-              if (color != other_color) { // Avoid checking the same color against itself
-                  if (path[other_color].size() <= path_i) { continue; }
-                  // only output if right and left are the same for both (LATER: all?) colors 
-                  if (path[color][path_i][0] == path[other_color][path_i][0] && path[color][path_i].back() == path[other_color][path_i].back()) {
-                      if (!outputted_left_right) left_stream << ">" << header << "\n" << path[color][path_i][0] << "\n"; // first element
-                      if (!outputted_color)  var_stream[color] += ">" + std::to_string(color) + "\n" + path[color][path_i][path[color][path_i].size() - 3] + "\n"; // stitched element
+          bool outputted_once = false;
+          for (int other_colors = 0; other_colors < path.size(); other_colors++) {
+              if (other_colors == color) { continue; } // Avoid checking the same color against itself
+              if (path[other_colors].empty()) { continue; } // Skip if the other color's paths are empty
+              for (int other_paths = 0; other_paths < path[other_colors].size(); other_paths++) {
+                  if (path[other_colors][other_paths].size() <= path_i) { continue; } // Check if the index is valid for the other path
+                  if (path[color][path_i][0] != path[other_colors][other_paths][0] || path[color][path_i].back() != path[other_colors][other_paths].back()) continue; // Skip if source and/or sink mismatch
+                  // We only output paths that have the same source and sink across all colors (LATER: how to handle 2/3 colors, etc)
+                  if (!outputted_once) {
+                      if (!outputted_left_right) left_stream << ">" << header << "\n" << path[color][path_i][0] << "\n"; // First element
+                      if (!outputted_color)  var_stream[color] += ">" + std::to_string(color) + "\n" + path[color][path_i][path[color][path_i].size() - 3] + "\n"; // Stitched element
                       outputted_color = true;
-                      if (!outputted_left_right) right_stream << ">" << header << "\n" << path[color][path_i].back() << "\n"; // last element
+                      if (!outputted_left_right) right_stream << ">" << header << "\n" << path[color][path_i].back() << "\n"; // Last element
                       outputted_left_right = true; // We only want to output left/right once
+                      outputted_once = true;
                   }
-              }              
+              }
           }
-          
       }
   }
+
   return {};
 }
 
@@ -1131,7 +1134,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                             } // end if !opt.distinguish_union
                             // Now, write out what remains among the contigs
                             for (const auto& k_elem : k_map) {
-				if (opt.distinguish_combinations) break; // Don't need this loop; we're just doing combinations which we have already stored in output stream
+				                if (opt.distinguish_combinations) break; // Don't need this loop; we're just doing combinations which we have already stored in output stream
                                 int curr_pos = -1;
                                 std::string colored_contig = "";
                                 auto color = k_elem.first;
