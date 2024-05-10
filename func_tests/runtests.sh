@@ -168,15 +168,25 @@ check_fasta_files "$o/dummy_1_R.fa" "$o/dummy_1_V.fa" "$o/dummy_1revcomp_L.fa" "
 check_fasta_files "$o/dummy_1_L.fa" "$o/dummy_1_V.fa" "$o/dummy_1_L.fa" "$o/dummy_2_L.fa" "$o/dummy_2_V.fa" "$o/dummy_2_R.fa" $fail
 check_fasta_files "$o/dummy_1revcomp_L.fa" "$o/dummy_1_V.fa" "$o/dummy_1_L.fa" "$o/dummy_2_L.fa" "$o/dummy_2_V.fa" "$o/dummy_2_R.fa" $fail
 
-check_fasta_files "$o/klue_output/expected_L.fa" "$o/klue_output/expected_V0.fa" "$o/klue_output/expected_R.fa" "$o/klue_output/left.fa" "$o/klue_output/var0.fa" "$o/klue_output/right.fa"
-check_fasta_files "$o/klue_output/expected_L.fa" "$o/klue_output/expected_V1.fa" "$o/klue_output/expected_R.fa" "$o/klue_output/left.fa" "$o/klue_output/var1.fa" "$o/klue_output/right.fa"
+# Test using klue distinguish -k 7 snp_x.fa snp_y.fa
+check_fasta_files "$o/klue_output/snp_xy_xyz_expected_L.fa" "$o/klue_output/snp_xy_xyz_expected_V0.fa" "$o/klue_output/snp_xy_xyz_expected_R.fa" "$o/klue_output/snp_xy_left.fa" "$o/klue_output/snp_xy_var0.fa" "$o/klue_output/snp_xy_right.fa"
+check_fasta_files "$o/klue_output/snp_xy_xyz_expected_L.fa" "$o/klue_output/snp_xy_xyz_expected_V1.fa" "$o/klue_output/snp_xy_xyz_expected_R.fa" "$o/klue_output/snp_xy_left.fa" "$o/klue_output/snp_xy_var1.fa" "$o/klue_output/snp_xy_right.fa"
+
+# Test using klue distinguish --bubble -k 7 snp_x.fa snp_y.fa snp_z.fa
+check_fasta_files "$o/klue_output/snp_xy_xyz_expected_L.fa" "$o/klue_output/snp_xy_xyz_expected_V0.fa" "$o/klue_output/snp_xy_xyz_expected_R.fa" "$o/klue_output/snp_xyz_left.fa" "$o/klue_output/snp_xyz_var0.fa" "$o/klue_output/snp_xyz_right.fa"
+check_fasta_files "$o/klue_output/snp_xy_xyz_expected_L.fa" "$o/klue_output/snp_xy_xyz_expected_V1.fa" "$o/klue_output/snp_xy_xyz_expected_R.fa" "$o/klue_output/snp_xyz_left.fa" "$o/klue_output/snp_xyz_var1.fa" "$o/klue_output/snp_xyz_right.fa"
+check_fasta_files "$o/klue_output/snp_xy_xyz_expected_L.fa" "$o/klue_output/snp_xy_xyz_expected_V2.fa" "$o/klue_output/snp_xy_xyz_expected_R.fa" "$o/klue_output/snp_xyz_left.fa" "$o/klue_output/snp_xyz_var2.fa" "$o/klue_output/snp_xyz_right.fa"
+
+# Test using klue distinguish --bubble -k 7 snp_insertion_x.fa snp_insertion_y.fa
+check_fasta_files "$o/klue_output/snp_insertion_expected_L.fa" "$o/klue_output/snp_insertion_expected_V0.fa" "$o/klue_output/snp_insertion_expected_R.fa" "$o/klue_output/snp_insertion_left.fa" "$o/klue_output/snp_insertion_var0.fa" "$o/klue_output/snp_insertion_right.fa"
+check_fasta_files "$o/klue_output/snp_insertion_expected_L.fa" "$o/klue_output/snp_insertion_expected_V1.fa" "$o/klue_output/snp_insertion_expected_R.fa" "$o/klue_output/snp_insertion_left.fa" "$o/klue_output/snp_insertion_var1.fa" "$o/klue_output/snp_insertion_right.fa"
+
+# Test using klue distinguish --bubble -k 7 extendedvariation_x.fa extendedvariation_y.fa
+check_fasta_files "$o/klue_output/extendedvariation_expected_L.fa" "$o/klue_output/extendedvariation_expected_V0.fa" "$o/klue_output/extendedvariation_expected_R.fa" "$o/klue_output/extendedvariation_left.fa" "$o/klue_output/extendedvariation_var0.fa" "$o/klue_output/extendedvariation_right.fa"
+check_fasta_files "$o/klue_output/extendedvariation_expected_L.fa" "$o/klue_output/extendedvariation_expected_V1.fa" "$o/klue_output/extendedvariation_expected_R.fa" "$o/klue_output/extendedvariation_left.fa" "$o/klue_output/extendedvariation_var1.fa" "$o/klue_output/extendedvariation_right.fa"
 
 # Test basic run (note: we only check wc -c, i.e. number of characters, because we don't want to deal with +/- unitig strand issues)
 checkcmdoutput "$klue distinguish -t 1 -M 1,1 -p $test_dir/test_1.fq.gz $test_dir/test_2.fq.gz|wc -c|tr -d ' '" 96a9f3ee62e50cdc0f6e4afe6fef0ce9
-checkcmdoutput "$klue distinguish --bubble -t 1 -M 1,1 -k 7 -p -L test_L.fa -R test_R.fa -V test_V0.fa,test_V1.fa $test_dir/snp_x.fa $test_dir/snp_y.fa|wc -c|tr -d ' '" e42bb897d0afcdb1f1c46fb5e0c1ad22
-checkcmdoutput "$klue distinguish --bubble -t 1 -M 1,1 -k 7 -p -L test_L.fa -R test_R.fa -V test_V0.fa,test_V1.fa $test_dir/snp_insertion_x.fa $test_dir/snp_insertion_y.fa|wc -c|tr -d ' '" 5321951a8ceb122075cf6e80fce468ca
-checkcmdoutput "$klue distinguish --bubble -t 1 -M 1,1 -k 7 -p -L test_L.fa -R test_R.fa -V test_V0.fa,test_V1.fa $test_dir/extendedvariation_x.fa $test_dir/extendedvariation_y.fa|wc -c|tr -d ' '" 3d26e13f5daf5e4cb7a154bd5107a27a
-#checkcmdoutput "cat $o/dummy_1_L.fa |wc -c|tr -d ' '" 84bc3da1b3e33a18e8d5e1bdd7a18d7a
 
 # The next tests don't work
 
