@@ -94,6 +94,18 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_insertion_var1.fa
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
 
 
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xy_expected_L.fa
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xy_expected_R.fa
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xy_expected_V0.fa
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xy_expected_V1.fa
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
+
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xy_left.fa
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
 
@@ -106,6 +118,21 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xy_var0.fa
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xy_var1.fa
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
 
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xyz_expected_L.fa
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xyz_expected_R.fa
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xyz_expected_V0.fa
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xyz_expected_V1.fa
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xyz_expected_V2.fa
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xyz_left.fa
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
@@ -120,20 +147,4 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xyz_var1.fa
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xyz_var2.fa
-     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
-
-
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xy_xyz_expected_L.fa
-     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
-
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xy_xyz_expected_R.fa
-     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
-
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xy_xyz_expected_V0.fa
-     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
-
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xy_xyz_expected_V1.fa
-     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
-
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xyz_expected_V2.fa
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
