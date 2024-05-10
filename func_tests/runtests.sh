@@ -170,13 +170,13 @@ check_fasta_files "$o/dummy_1revcomp_L.fa" "$o/dummy_1_V.fa" "$o/dummy_1_L.fa" "
 
 o="$test_dir"
 # Test using klue distinguish -k 7 snp_x.fa snp_y.fa
-check_fasta_files "$o/klue_output/snp_xy_xyz_expected_L.fa" "$o/klue_output/snp_xy_xyz_expected_V0.fa" "$o/klue_output/snp_xy_xyz_expected_R.fa" "$o/klue_output/snp_xy_left.fa" "$o/klue_output/snp_xy_var0.fa" "$o/klue_output/snp_xy_right.fa"
-check_fasta_files "$o/klue_output/snp_xy_xyz_expected_L.fa" "$o/klue_output/snp_xy_xyz_expected_V1.fa" "$o/klue_output/snp_xy_xyz_expected_R.fa" "$o/klue_output/snp_xy_left.fa" "$o/klue_output/snp_xy_var1.fa" "$o/klue_output/snp_xy_right.fa"
+check_fasta_files "$o/klue_output/snp_xy_expected_L.fa" "$o/klue_output/snp_xy_expected_V0.fa" "$o/klue_output/snp_xy_expected_R.fa" "$o/klue_output/snp_xy_left.fa" "$o/klue_output/snp_xy_var0.fa" "$o/klue_output/snp_xy_right.fa"
+check_fasta_files "$o/klue_output/snp_xy_expected_L.fa" "$o/klue_output/snp_xy_expected_V1.fa" "$o/klue_output/snp_xy_expected_R.fa" "$o/klue_output/snp_xy_left.fa" "$o/klue_output/snp_xy_var1.fa" "$o/klue_output/snp_xy_right.fa"
 
 # Test using klue distinguish --bubble -k 7 snp_x.fa snp_y.fa snp_z.fa
-check_fasta_files "$o/klue_output/snp_xy_xyz_expected_L.fa" "$o/klue_output/snp_xy_xyz_expected_V0.fa" "$o/klue_output/snp_xy_xyz_expected_R.fa" "$o/klue_output/snp_xyz_left.fa" "$o/klue_output/snp_xyz_var0.fa" "$o/klue_output/snp_xyz_right.fa"
-check_fasta_files "$o/klue_output/snp_xy_xyz_expected_L.fa" "$o/klue_output/snp_xy_xyz_expected_V1.fa" "$o/klue_output/snp_xy_xyz_expected_R.fa" "$o/klue_output/snp_xyz_left.fa" "$o/klue_output/snp_xyz_var1.fa" "$o/klue_output/snp_xyz_right.fa"
-check_fasta_files "$o/klue_output/snp_xy_xyz_expected_L.fa" "$o/klue_output/snp_xy_xyz_expected_V2.fa" "$o/klue_output/snp_xy_xyz_expected_R.fa" "$o/klue_output/snp_xyz_left.fa" "$o/klue_output/snp_xyz_var2.fa" "$o/klue_output/snp_xyz_right.fa"
+check_fasta_files "$o/klue_output/snp_xyz_expected_L.fa" "$o/klue_output/snp_xyz_expected_V0.fa" "$o/klue_output/snp_xyz_expected_R.fa" "$o/klue_output/snp_xyz_left.fa" "$o/klue_output/snp_xyz_var0.fa" "$o/klue_output/snp_xyz_right.fa"
+check_fasta_files "$o/klue_output/snp_xyz_expected_L.fa" "$o/klue_output/snp_xyz_expected_V1.fa" "$o/klue_output/snp_xyz_expected_R.fa" "$o/klue_output/snp_xyz_left.fa" "$o/klue_output/snp_xyz_var1.fa" "$o/klue_output/snp_xyz_right.fa"
+check_fasta_files "$o/klue_output/snp_xyz_expected_L.fa" "$o/klue_output/snp_xyz_expected_V2.fa" "$o/klue_output/snp_xyz_expected_R.fa" "$o/klue_output/snp_xyz_left.fa" "$o/klue_output/snp_xyz_var2.fa" "$o/klue_output/snp_xyz_right.fa"
 
 # Test using klue distinguish --bubble -k 7 snp_insertion_x.fa snp_insertion_y.fa
 check_fasta_files "$o/klue_output/snp_insertion_expected_L.fa" "$o/klue_output/snp_insertion_expected_V0.fa" "$o/klue_output/snp_insertion_expected_R.fa" "$o/klue_output/snp_insertion_left.fa" "$o/klue_output/snp_insertion_var0.fa" "$o/klue_output/snp_insertion_right.fa"
