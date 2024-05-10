@@ -168,6 +168,9 @@ check_fasta_files "$o/dummy_1_R.fa" "$o/dummy_1_V.fa" "$o/dummy_1revcomp_L.fa" "
 check_fasta_files "$o/dummy_1_L.fa" "$o/dummy_1_V.fa" "$o/dummy_1_L.fa" "$o/dummy_2_L.fa" "$o/dummy_2_V.fa" "$o/dummy_2_R.fa" $fail
 check_fasta_files "$o/dummy_1revcomp_L.fa" "$o/dummy_1_V.fa" "$o/dummy_1_L.fa" "$o/dummy_2_L.fa" "$o/dummy_2_V.fa" "$o/dummy_2_R.fa" $fail
 
+check_fasta_files "$o/klue_output/expected_L.fa" "$o/klue_output/expected_V0.fa" "$o/klue_output/expected_R.fa" "$o/klue_output/left.fa" "$o/klue_output/var0.fa" "$o/klue_output/right.fa"
+check_fasta_files "$o/klue_output/expected_L.fa" "$o/klue_output/expected_V1.fa" "$o/klue_output/expected_R.fa" "$o/klue_output/left.fa" "$o/klue_output/var1.fa" "$o/klue_output/right.fa"
+
 # Test basic run (note: we only check wc -c, i.e. number of characters, because we don't want to deal with +/- unitig strand issues)
 checkcmdoutput "$klue distinguish -t 1 -M 1,1 -p $test_dir/test_1.fq.gz $test_dir/test_2.fq.gz|wc -c|tr -d ' '" 96a9f3ee62e50cdc0f6e4afe6fef0ce9
 checkcmdoutput "$klue distinguish --bubble -t 1 -M 1,1 -k 7 -p -L test_L.fa -R test_R.fa -V test_V0.fa,test_V1.fa $test_dir/snp_x.fa $test_dir/snp_y.fa|wc -c|tr -d ' '" e42bb897d0afcdb1f1c46fb5e0c1ad22
