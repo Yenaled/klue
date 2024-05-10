@@ -135,5 +135,5 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xy_xyz_expected_V0.fa
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xy_xyz_expected_V1.fa
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
 
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xy_xyz_expected_V2.fa
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/snp_xyz_expected_V2.fa
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
