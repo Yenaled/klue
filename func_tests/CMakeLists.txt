@@ -42,6 +42,30 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/expected_output/dummy_2revcomp_V.fa
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/expected_output/dummy_2_R.fa
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/expected_output)
 
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/left.fa
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/right.fa
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/var0.fa
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/var1.fa
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/expected_L.fa
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/expected_R.fa
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/expected_V0.fa
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/klue_output/expected_V1.fa
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/klue_output)
+
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/snp_x.fa
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
