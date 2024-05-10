@@ -400,27 +400,20 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
     }
   }
 
-  /*
+ /*
  for (int color = 0; color < path.size(); color++) {
       if (path[color].size() == 0) { continue; }
       std::cout << ":COLOR: " << color << std::endl;
       for (int path_i = 0; path_i < path[color].size(); path_i++) {
-          for (int other_color = 0; other_color < path.size(); other_color++) {
-              if (color != other_color) { // Avoid checking the same color against itself
-                  if (path[other_color].size() <= path_i) { continue; }
-                  if (path[color][path_i][0] == path[other_color][path_i][0] && path[color][path_i].back() == path[other_color][path_i].back()) {
-                      std::cout << ":::";
-                      for (auto x : path[color][path_i]) {
-                          std::cout << x << " ";
-                      }
-                      std::cout << std::endl;
-                  }
-              }
+          std::cout << ":::";
+          for (auto x : path[color][path_i]) {
+              std::cout << x << " ";
           }
+          std::cout << std::endl;
       }
   }
-  */
-
+ */
+ 
   std::string header;
   for (int color = 0; color < path.size(); color++) {
       header += std::to_string(color);
@@ -443,7 +436,7 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                   // We only output paths that have the same source and sink across all colors (LATER: how to handle 2/3 colors, etc)
                   if (!outputted_once) {
                       if (!outputted_left_right) left_stream << ">" << header << "\n" << path[color][path_i][0] << "\n"; // First element
-                      if (!outputted_color)  var_stream[color] += ">" + std::to_string(color) + "\n" + path[color][path_i][path[color][path_i].size() - 3] + "\n"; // Stitched element
+                      if (!outputted_color) var_stream[color] += ">" + std::to_string(color) + "\n" + path[color][path_i][path[color][path_i].size() - 3] + "\n"; // Stitched element
                       outputted_color = true;
                       if (!outputted_left_right) right_stream << ">" << header << "\n" << path[color][path_i].back() << "\n"; // Last element
                       outputted_left_right = true; // We only want to output left/right once
@@ -906,7 +899,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
     // continue with default processing
     // TODO: Reconstruct below
     for (const auto& unitig : ccdbg) { // Iterate through all the unitigs in the de bruijn graph
-      //std::cout << ":--" << unitig.referenceUnitigToString() << std::endl;
+        //std::cout << ":--" << unitig.referenceUnitigToString() << std::endl;
         const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
         const UnitigMap<DataAccessor<void>, DataStorage<void>, false> unitig_ = unitig;
         unitigs_v[n % unitigs_v.size()].push_back(std::make_pair(uc, unitig_)); // unitigs_v = vector of vectors of unitigs (b/c each thread contains a vector of unitigs)
