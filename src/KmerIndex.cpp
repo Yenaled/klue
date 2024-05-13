@@ -155,180 +155,186 @@ struct Bubble {
     std::string bubble_right;
 };
 
-
-/* 
- * 
+/*
+ *
  */
 void findPredecessorBaseNodes(ColoredCDBG<void>& ccdbg,
-                              Kmer curr_node,
-                              std::unordered_set<Kmer, KmerHash>& base_nodes,
-                              std::unordered_set<Kmer, KmerHash> visited_nodes,
-                              std::unordered_set<Kmer, KmerHash> visited_nodes_second_time,
-                              const std::unordered_set<int>& color_profile,
-                              const std::unordered_set<int>& ideal_color_profile) {
+    Kmer curr_node,
+    std::unordered_set<Kmer, KmerHash>& base_nodes,
+    std::unordered_set<Kmer, KmerHash> visited_nodes,
+    std::unordered_set<Kmer, KmerHash> visited_nodes_second_time,
+    const std::unordered_set<int>& color_profile,
+    const std::unordered_set<int>& ideal_color_profile) {
     const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& current = ccdbg.find(curr_node); // Unitig associated with current node
     //std::cout << ":strand=" << std::to_string(current.strand) << " " << curr_node.toString() << std::endl;
     UnitigColors::const_iterator it_colors = current.getData()->getUnitigColors(current)->begin(current);
     UnitigColors::const_iterator it_colors_end = current.getData()->getUnitigColors(current)->end();
     std::unordered_set<int> color_profile_;
     for (; it_colors != it_colors_end; ++it_colors) { color_profile_.insert(it_colors.getColorID()); }
-    if (color_profile_ == ideal_color_profile) {
-      base_nodes.insert(curr_node.rep()); // Found a base node (anchoring the bubble on the left, aka predecessor, side)
-      return;
+    
+    if (color_profile_ == ideal_color_profile) {        
+        base_nodes.insert(curr_node.rep()); // Found a base node (anchoring the bubble on the left, aka predecessor, side)
+        return;
     }
     if (color_profile_ != color_profile) { // Color switching; therefore we won't continue...
-      return;
+        return;
     }
     //std::cout << ":E " << curr_node.rep().toString() << std::endl;
     if (visited_nodes.find(curr_node.rep()) != visited_nodes.end()) { // Already found current node
-      if (visited_nodes_second_time.find(curr_node.rep()) != visited_nodes_second_time.end()) { // Also already found it a second time!
-        //std::cout << ":EEE " << std::to_string(current.strand) << " " << curr_node.toString() << std::endl;
-        return; // If this is our third time visiting current node, we don't want to continue...
-      } else {
-        //std::cout << ":EE " << std::to_string(current.strand) << " " << curr_node.toString() << std::endl;
-        visited_nodes_second_time.insert(curr_node.rep()); // Second time visiting current node, which is ok (we can loop once in the graph)
-      }
-    } else {
-      visited_nodes.insert(curr_node.rep()); // First time visiting current node
+        if (visited_nodes_second_time.find(curr_node.rep()) != visited_nodes_second_time.end()) { // Also already found it a second time!
+            //std::cout << ":EEE " << std::to_string(current.strand) << " " << curr_node.toString() << std::endl;
+            return; // If this is our third time visiting current node, we don't want to continue...
+        }
+        else {
+            //std::cout << ":EE " << std::to_string(current.strand) << " " << curr_node.toString() << std::endl;
+            visited_nodes_second_time.insert(curr_node.rep()); // Second time visiting current node, which is ok (we can loop once in the graph)
+        }
+    }
+    else {
+        visited_nodes.insert(curr_node.rep()); // First time visiting current node
     }
     auto predecessors_ = current.getPredecessors();
     if (predecessors_.begin() == predecessors_.end()) { // No more predecessors
-      //std::cout << ": NOMORE" << std::endl;
-      return;
+        //std::cout << ": NOMORE" << std::endl;
+        return;
     }
     for (const auto& prev : predecessors_) {
-      findPredecessorBaseNodes(ccdbg, prev.getUnitigHead().rep(), base_nodes, visited_nodes, visited_nodes_second_time, color_profile, ideal_color_profile);
+        findPredecessorBaseNodes(ccdbg, prev.getUnitigHead().rep(), base_nodes, visited_nodes, visited_nodes_second_time, color_profile, ideal_color_profile);
     }
 }
 
 void traverseBubble(ColoredCDBG<void>& ccdbg,
-                              Kmer curr_node,
-                              std::vector<std::vector<std::vector<std::string>>> & path, // outer index = color ID; inside vector = paths associated with color where each path is a vector of strings; so we have 1) color index, 2) path index, and 3) string index
-                              std::vector<std::string> tmp_path,
-                              int color,
-                              bool start,
-                              int cycle,
-                              int prev_strand,
-                              int rand_id,
-                              int k,
-                              std::unordered_set<Kmer, KmerHash> visited_nodes,
-                              std::unordered_set<Kmer, KmerHash> visited_nodes_second_time,
-                              const std::unordered_set<int>& ideal_color_profile) {
-  
-  UnitigMap<DataAccessor<void>, DataStorage<void>, false> current = ccdbg.find(curr_node); // Unitig associated with current node
-  current.strand = prev_strand;
-  UnitigColors::const_iterator it_uc = current.getData()->getUnitigColors(current)->begin(current);
-  UnitigColors::const_iterator uc_end = current.getData()->getUnitigColors(current)->end();
-  
-  std::string contig = "";
-  int curr_pos = -1;
-  std::unordered_map<Kmer, std::unordered_set<int>, KmerHash> kmers_color_map; // Key = k-mer; Value = Set of all colors associated with that k-mer
-  
-  if (visited_nodes.find(curr_node.rep()) != visited_nodes.end()) { // Already found current node
-    if (visited_nodes_second_time.find(curr_node.rep()) != visited_nodes_second_time.end()) { // Also already found it a second time!
-      return; // If this is our third time visiting current node, we don't want to continue...
-  } else {
-      visited_nodes_second_time.insert(curr_node.rep()); // Second time visiting current node, which is ok (we can loop once in the graph)
-    }
-  } else {
-    visited_nodes.insert(curr_node.rep()); // First time visiting current node
-  }
-  
-  for (; it_uc != uc_end; ++it_uc) { // TODO: this is what we need to navigate well
-    Kmer km = current.getUnitigKmer(it_uc.getKmerPosition());
-    kmers_color_map[km.rep()].insert(it_uc.getColorID());
-  }
-  if (cycle == 0) {
-    std::unordered_set<int> c; // Intersection
-    for (auto e : ideal_color_profile) {
-      if (kmers_color_map[curr_node.rep()].count(e)) { c.insert(e); }
-    }
-    if (c.size() != ideal_color_profile.size()) {
-      return; // We only can start from unitigs that contain the same number of colors as the bubble ends
-    }
-  }
+    Kmer curr_node,
+    std::vector<std::vector<std::vector<std::string>>>& path, // outer index = color ID; inside vector = paths associated with color where each path is a vector of strings; so we have 1) color index, 2) path index, and 3) string index
+    std::vector<std::string> tmp_path,
+    int color,
+    bool start,
+    int cycle,
+    int prev_strand,
+    int rand_id,
+    int k,
+    std::unordered_set<Kmer, KmerHash> visited_nodes,
+    std::unordered_set<Kmer, KmerHash> visited_nodes_second_time,
+    const std::unordered_set<int>& ideal_color_profile) {
 
-  std::unordered_set<int> color_profile;
-  color_profile.insert(color); // This is the color of the path that we're currently navigating through
-  
-  bool end_of_bubble = false;
-  bool initial_start_status = start;
+    UnitigMap<DataAccessor<void>, DataStorage<void>, false> current = ccdbg.find(curr_node); // Unitig associated with current node
+    current.strand = prev_strand;
+    UnitigColors::const_iterator it_uc = current.getData()->getUnitigColors(current)->begin(current);
+    UnitigColors::const_iterator uc_end = current.getData()->getUnitigColors(current)->end();
+
+    std::string contig = "";
+    int curr_pos = -1;
+    std::unordered_map<Kmer, std::unordered_set<int>, KmerHash> kmers_color_map; // Key = k-mer; Value = Set of all colors associated with that k-mer
+
+    if (visited_nodes.find(curr_node.rep()) != visited_nodes.end()) { // Already found current node
+        if (visited_nodes_second_time.find(curr_node.rep()) != visited_nodes_second_time.end()) { // Also already found it a second time!
+            return; // If this is our third time visiting current node, we don't want to continue...
+        }
+        else {
+            visited_nodes_second_time.insert(curr_node.rep()); // Second time visiting current node, which is ok (we can loop once in the graph)
+        }
+    }
+    else {
+        visited_nodes.insert(curr_node.rep()); // First time visiting current node
+    }
+
+    for (; it_uc != uc_end; ++it_uc) { // TODO: this is what we need to navigate well
+        Kmer km = current.getUnitigKmer(it_uc.getKmerPosition());
+        kmers_color_map[km.rep()].insert(it_uc.getColorID());
+    }
+    if (cycle == 0) {
+        std::unordered_set<int> c; // Intersection
+        for (auto e : ideal_color_profile) {
+            if (kmers_color_map[curr_node.rep()].count(e)) { c.insert(e); }
+        }
+        if (c.size() != ideal_color_profile.size()) {
+            return; // We only can start from unitigs that contain the same number of colors as the bubble ends
+        }
+    }
+
+    std::unordered_set<int> color_profile;
+    color_profile.insert(color); // This is the color of the path that we're currently navigating through
+
+    bool end_of_bubble = false;
+    bool initial_start_status = start;
     int i = 0;
     std::unordered_set<int> current_color;
     auto unitig_len_in_kmers = current.size - ccdbg.getK() + 1;
     while (true) {
-      if (i == unitig_len_in_kmers) {
-        break; // We've reached the end of the unitig so we're done
-      }
-      Kmer kmer = Kmer(current.referenceUnitigToString().c_str()+i);
-      i++;
-      if (kmers_color_map.find(kmer.rep()) != kmers_color_map.end()) {
-        current_color = kmers_color_map[kmer.rep()]; // Update color because we're onto the next color of the unitig!
-      }
-      assert(!current_color.empty());
-      std::string km = kmer.toString();
-      if (color == -1) {
-        if (!start) { // Make sure we have continuous segment of ideal_color_profile color profile before doing anything further
-          if (current_color == ideal_color_profile) {
-            start = true;
-          }
-        } else if (current_color != ideal_color_profile) { // We're done with the beginning of the bubble
-          if (current_color.size() != 1) return; // We only want one color for our path!
-          color = *(current_color.begin());
-          color_profile.clear();
-          color_profile.insert(color); // Now, we have our "official" path with our "official" color
-          tmp_path.push_back(contig); // Push back the contig we have so far (i.e. the beginning of the bubble)
-          contig = ""; // reset contig
+        if (i == unitig_len_in_kmers) {
+            break; // We've reached the end of the unitig so we're done
         }
-      } else if (current_color== ideal_color_profile || end_of_bubble) {
-        // Yay, we've encountered the end of the bubble!
-        if (!end_of_bubble) {
-          if (visited_nodes_second_time.find(kmer.rep()) != visited_nodes_second_time.end()) return; // Can't have a loop be the end of a bubble
-          tmp_path.push_back(contig); // Push back the contig we have so far
-          contig = ""; // reset contig
-          end_of_bubble = true;
-        } else if (current_color != ideal_color_profile) { // There's a color change within the unitig so we want to stop extending
-          break; // Yup, stop right here
+        Kmer kmer = Kmer(current.referenceUnitigToString().c_str() + i);
+        i++;
+        if (kmers_color_map.find(kmer.rep()) != kmers_color_map.end()) {
+            current_color = kmers_color_map[kmer.rep()]; // Update color because we're onto the next color of the unitig!
         }
-      } else if (current_color != color_profile) {
-        return; // Oops, ran into a color switch (aka a "dead end"), just return without updating anything
-      }
-      // if prev_strand, _km = kmer.twin().toString(); else _km = kmer.toString();
-      std::string _km = prev_strand ? kmer.twin().toString() : kmer.toString();
-      if (contig == "") contig = _km;
-      else {
-          // if last (k-1) of _km and first (k-1) of contig are the same, we want to take the first character of _km and append it to contig
-          if (_km.substr(1) == contig.substr(0, k - 1)) contig = _km[0] + contig;
-          // if last (k-1) of _km and last (k-1) of contig are the same, we want to take the last character of _km and append it to contig
-          else contig += _km[k - 1]; // _km.length() = k
-      }
-      //std::cout << "_km    = " << _km << " " << _km.substr(0,k-1) << " " << _km.substr(1) << " " << std::endl;
-      //std::cout << "contig = " << contig << " " << contig.substr(0,k-1) << " " << contig.substr(contig.length()-(k-1)) << " " << std::endl;
+        assert(!current_color.empty());
+        std::string km = kmer.toString();
+        if (color == -1) {
+            if (!start) { // Make sure we have continuous segment of ideal_color_profile color profile before doing anything further
+                if (current_color == ideal_color_profile) {
+                    start = true;
+                }
+            }
+            else if (current_color != ideal_color_profile) { // We're done with the beginning of the bubble
+                if (current_color.size() != 1) return; // We only want one color for our path!
+                color = *(current_color.begin());
+                color_profile.clear();
+                color_profile.insert(color); // Now, we have our "official" path with our "official" color
+                tmp_path.push_back(contig); // Push back the contig we have so far (i.e. the beginning of the bubble)
+                contig = ""; // reset contig
+            }
+        }
+        else if (current_color == ideal_color_profile || end_of_bubble) {
+            // Yay, we've encountered the end of the bubble!
+            if (!end_of_bubble) {
+                if (visited_nodes_second_time.find(kmer.rep()) != visited_nodes_second_time.end()) return; // Can't have a loop be the end of a bubble
+                tmp_path.push_back(contig); // Push back the contig we have so far
+                contig = ""; // reset contig
+                end_of_bubble = true;
+            }
+            else if (current_color != ideal_color_profile) { // There's a color change within the unitig so we want to stop extending
+                break; // Yup, stop right here
+            }
+        }
+        else if (current_color != color_profile) {
+            return; // Oops, ran into a color switch (aka a "dead end"), just return without updating anything
+        }
+        // if prev_strand, _km = kmer.twin().toString(); else _km = kmer.toString();
+        std::string _km = prev_strand ? kmer.twin().toString() : kmer.toString();
+        if (contig == "") contig = _km;
+        else {
+            // if last (k-1) of _km and first (k-1) of contig are the same, we want to take the first character of _km and append it to contig
+            if (_km.substr(1) == contig.substr(0, k - 1)) contig = _km[0] + contig;
+            // if last (k-1) of _km and last (k-1) of contig are the same, we want to take the last character of _km and append it to contig
+            else contig += _km[k - 1]; // _km.length() = k
+        }
+        //std::cout << "_km    = " << _km << " " << _km.substr(0,k-1) << " " << _km.substr(1) << " " << std::endl;
+        //std::cout << "contig = " << contig << " " << contig.substr(0,k-1) << " " << contig.substr(contig.length()-(k-1)) << " " << std::endl;
     }
-  
-  if (contig != "" && start) tmp_path.push_back(contig);
-  if (end_of_bubble) {
-    path[color].push_back(std::move(tmp_path)); // Note: Make sure we allocate in advance the path vector with the number of colors in advance
-    return;
-  }
-  
-  auto successors = current.getSuccessors();
-  auto predecessors = current.getPredecessors();
-  ++cycle;
-  
-  
-  
-  for (const auto& successor : successors) {
-    bool move_next = true;
-    Kmer next_kmer = curr_node;
-    if (true) traverseBubble(ccdbg, successor.getUnitigHead(), path, tmp_path, color, start, cycle, successor.strand, rand_id, k, visited_nodes, visited_nodes_second_time, ideal_color_profile);
-  }
-  for (const auto& predecessor : predecessors) {
-    break; // Don't do predecessors? 
-    bool move_next = true;
-    Kmer next_kmer = curr_node;
-    if (move_next) traverseBubble(ccdbg, predecessor.getUnitigHead(), path, tmp_path, color, start, cycle, predecessor.strand, rand_id, k, visited_nodes, visited_nodes_second_time, ideal_color_profile);
-  }
+
+    if (contig != "" && start) tmp_path.push_back(contig);
+    if (end_of_bubble) {
+        path[color].push_back(std::move(tmp_path)); // Note: Make sure we allocate in advance the path vector with the number of colors in advance
+        return;
+    }
+
+    auto successors = current.getSuccessors();
+    auto predecessors = current.getPredecessors();
+    ++cycle;
+
+    for (const auto& successor : successors) {
+        bool move_next = true;
+        Kmer next_kmer = curr_node;
+        if (true) traverseBubble(ccdbg, successor.getUnitigHead(), path, tmp_path, color, start, cycle, successor.strand, rand_id, k, visited_nodes, visited_nodes_second_time, ideal_color_profile);
+    }
+    for (const auto& predecessor : predecessors) {
+        break; // Don't do predecessors? 
+        bool move_next = true;
+        Kmer next_kmer = curr_node;
+        if (move_next) traverseBubble(ccdbg, predecessor.getUnitigHead(), path, tmp_path, color, start, cycle, predecessor.strand, rand_id, k, visited_nodes, visited_nodes_second_time, ideal_color_profile);
+    }
 }
 
 Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
@@ -340,114 +346,126 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
     std::ostringstream& left_stream,
     std::vector<std::string>& var_stream,
     std::ostringstream& right_stream) {
-  
 
-  auto successors_ = current.getSuccessors();
-  auto predecessors_ = current.getPredecessors();
-  
-  if (successors_.begin() == successors_.end() && predecessors_.begin() == predecessors_.end()) { return {}; } // Isolated node [no bubble structure]
-  
-  // Navigate to the very left anchor of bubble
-  
-  std::unordered_set<Kmer, KmerHash> visited_nodes;
-  std::unordered_set<Kmer, KmerHash> visited_nodes_second_time;
-  std::unordered_set<int> ideal_color_profile;
-  for (int i = 0; i < ccdbg.getColorNames().size(); i++) {
-    ideal_color_profile.insert(i);
-  }
-  Kmer curr_node = current.getUnitigHead();
-  
-  // Do the bubble traversion!
-  std::vector<std::vector<std::vector<std::string>>> path;
-  path.resize(ccdbg.getColorNames().size()); // Resize it to the number of colors
-  std::vector<std::string> tmp_path;
-  traverseBubble(ccdbg, curr_node, path, tmp_path, -1, false, 0, -1, rand(), k, visited_nodes, visited_nodes_second_time, ideal_color_profile);
 
-  for (int color = 0; color < path.size(); color++) {
-    for (int path_i = 0; path_i < path[color].size(); path_i++) {
-      int i = 0;
-      while (i < path[color][path_i].size() - 2) { // stop before the last element
-        auto x = path[color][path_i][i];
-        // first/last element are source/sink
-        // want to stitch together the middle elements
-        std::string x_first = x.substr(0, k - 1); // first (k-1) characters
-        std::string x_last;
-        if (k - 1 > 0 && x.length() >= k - 1) {
-          x_last = x.substr(x.length() - (k - 1)); // last (k-1) characters
-        }
-        
-        auto& next = path[color][path_i][i + 1];
-        std::string next_first = next.substr(0, k - 1); // first (k-1) characters
-        std::string next_last;
-        std::string substr1;
-        std::string substr2;
-        
-        if (k - 1 > 0 && next.length() >= k - 1) {
-          next_last = next.substr(next.length() - (k - 1)); // last (k-1) characters
-          substr1 = next.substr(0, next.length() - (k - 1));
-          substr2 = next.substr(k - 1);
-        }
-        if (x_first == next_last) {
-          std::string stitched_path = substr1 + x;
-          path[color][path_i][i + 1] = stitched_path;
-        }
-        else if (x_last == next_first) {
-          std::string stitched_path = x + substr2;
-          path[color][path_i][i + 1] = stitched_path;
-        }
-        i++;
-      }
+    auto successors_ = current.getSuccessors();
+    auto predecessors_ = current.getPredecessors();
+
+    if (successors_.begin() == successors_.end() && predecessors_.begin() == predecessors_.end()) { return {}; } // Isolated node [no bubble structure]
+
+    // Navigate to the very left anchor of bubble
+
+    std::unordered_set<Kmer, KmerHash> visited_nodes;
+    std::unordered_set<Kmer, KmerHash> visited_nodes_second_time;
+    std::unordered_set<int> ideal_color_profile;
+    for (int i = 0; i < ccdbg.getColorNames().size(); i++) {
+        ideal_color_profile.insert(i);
     }
-  }
+    Kmer curr_node = current.getUnitigHead();
 
- /*
- for (int color = 0; color < path.size(); color++) {
-      if (path[color].size() == 0) { continue; }
-      std::cout << ":COLOR: " << color << std::endl;
-      for (int path_i = 0; path_i < path[color].size(); path_i++) {
-          std::cout << ":::";
-          for (auto x : path[color][path_i]) {
-              std::cout << x << " ";
-          }
-          std::cout << std::endl;
-      }
-  }
- */
- 
-  std::string header;
-  for (int color = 0; color < path.size(); color++) {
-      header += std::to_string(color);
-      if (color != path.size() - 1) { header += "_"; }
-  }
-  
-  bool outputted_left_right = false;
-  for (int color = 0; color < path.size(); color++) {
-      bool outputted_color = false;
-      if (path[color].empty()) { continue; }
-      if (var_stream.size() == 1) { header = color; }
-      for (int path_i = 0; path_i < path[color].size(); path_i++) {
-          bool outputted_once = false;
-          for (int other_colors = 0; other_colors < path.size(); other_colors++) {
-              if (other_colors == color) { continue; } // Avoid checking the same color against itself
-              if (path[other_colors].empty()) { continue; } // Skip if the other color's paths are empty
-              for (int other_paths = 0; other_paths < path[other_colors].size(); other_paths++) {
-                  if (path[other_colors][other_paths].size() <= path_i) { continue; } // Check if the index is valid for the other path
-                  if (path[color][path_i][0] != path[other_colors][other_paths][0] || path[color][path_i].back() != path[other_colors][other_paths].back()) continue; // Skip if source and/or sink mismatch
-                  // We only output paths that have the same source and sink across all colors (LATER: how to handle 2/3 colors, etc)
-                  if (!outputted_once) {
-                      if (!outputted_left_right) left_stream << ">" << header << "\n" << path[color][path_i][0] << "\n"; // First element
-                      if (!outputted_color) var_stream[color] += ">" + std::to_string(color) + "\n" + path[color][path_i][path[color][path_i].size() - 3] + "\n"; // Stitched element
-                      outputted_color = true;
-                      if (!outputted_left_right) right_stream << ">" << header << "\n" << path[color][path_i].back() << "\n"; // Last element
-                      outputted_left_right = true; // We only want to output left/right once
-                      outputted_once = true;
-                  }
-              }
-          }
-      }
-  }
+    // Do the bubble traversion!
+    std::vector<std::vector<std::vector<std::string>>> path;
+    path.resize(ccdbg.getColorNames().size()); // Resize it to the number of colors
+    std::vector<std::string> tmp_path;
+    traverseBubble(ccdbg, curr_node, path, tmp_path, -1, false, 0, -1, rand(), k, visited_nodes, visited_nodes_second_time, ideal_color_profile);
 
-  return {};
+    for (int color = 0; color < path.size(); color++) {
+        for (int path_i = 0; path_i < path[color].size(); path_i++) {
+            int i = 0;
+            while (i < path[color][path_i].size() - 2) { // stop before the last element
+                auto x = path[color][path_i][i];
+                // first/last element are source/sink
+                // want to stitch together the middle elements
+                std::string x_first = x.substr(0, k - 1); // first (k-1) characters
+                std::string x_last;
+                if (k - 1 > 0 && x.length() >= k - 1) {
+                    x_last = x.substr(x.length() - (k - 1)); // last (k-1) characters
+                }
+
+                auto& next = path[color][path_i][i + 1];
+                std::string next_first = next.substr(0, k - 1); // first (k-1) characters
+                std::string next_last;
+                std::string substr1;
+                std::string substr2;
+
+                if (k - 1 > 0 && next.length() >= k - 1) {
+                    next_last = next.substr(next.length() - (k - 1)); // last (k-1) characters
+                    substr1 = next.substr(0, next.length() - (k - 1));
+                    substr2 = next.substr(k - 1);
+                }
+                if (x_first == next_last) {
+                    std::string stitched_path = substr1 + x;
+                    path[color][path_i][i + 1] = stitched_path;
+                }
+                else if (x_last == next_first) {
+                    std::string stitched_path = x + substr2;
+                    path[color][path_i][i + 1] = stitched_path;
+                }
+                i++;
+            }
+        }
+    }
+
+    /*
+    for (int color = 0; color < path.size(); color++) {
+         if (path[color].size() == 0) { continue; }
+         std::cout << ":COLOR: " << color << std::endl;
+         for (int path_i = 0; path_i < path[color].size(); path_i++) {
+             std::cout << ":::";
+             for (auto x : path[color][path_i]) {
+                 std::cout << x << " ";
+             }
+             std::cout << std::endl;
+         }
+    }
+    */
+
+    std::string header;
+    for (int color = 0; color < path.size(); color++) {
+        header += std::to_string(color);
+        if (color != path.size() - 1) { header += "_"; }
+    }
+    
+    bool outputted_left_right = false;
+    int already_encountered = 0;
+    for (int color = 0; color < path.size(); color++) {
+        bool outputted_color = false;
+        if (path[color].empty()) { continue; }
+        if (var_stream.size() == 1) { header = color; }
+        for (int path_i = 0; path_i < path[color].size(); path_i++) {
+            bool outputted_once = false;
+            for (int other_colors = 0; other_colors < path.size(); other_colors++) {
+                if (other_colors == color) { continue; } // Avoid checking the same color against itself
+                if (path[other_colors].empty()) { continue; } // Skip if the other color's paths are empty
+                for (int other_paths = 0; other_paths < path[other_colors].size(); other_paths++) {
+                    if (path[other_colors][other_paths].size() <= path_i) { continue; } // Check if the index is valid for the other path
+                    if (path[color][path_i][0] != path[other_colors][other_paths][0] || path[color][path_i].back() != path[other_colors][other_paths].back()) continue; // Skip if source and/or sink mismatch
+                    // We only output paths that have the same source and sink across all colors (LATER: how to handle 2/3 colors, etc)
+                    if (!outputted_once) {
+                        std::string left = path[color][path_i][0];
+                        std::string right = path[color][path_i].back();
+                        if (std::find_if(path[color][path_i].begin(), path[color][path_i].end(), [&](const std::string& node) {
+                            return visited.count(node) || visited.count(revcomp(node));
+                            }) != path[color][path_i].end()) {
+                            already_encountered++;
+                        }
+                        else {
+                            visited.insert(left);
+                            visited.insert(right);
+                        }
+
+                        if (!outputted_left_right && already_encountered == color) left_stream << ">" << header << "\n" << path[color][path_i][0] << "\n"; // First element
+                        if (!outputted_color && already_encountered == color) var_stream[color] += ">" + std::to_string(color) + "\n" + path[color][path_i][path[color][path_i].size() - 3] + "\n"; // Stitched element
+                        outputted_color = true;
+                        if (!outputted_left_right && already_encountered == color) right_stream << ">" << header << "\n" << path[color][path_i].back() << "\n"; // Last element
+                        outputted_left_right = true; // We only want to output left/right once
+                        outputted_once = true;
+                    }
+                }
+            }
+        }
+    }
+    return {};
 }
 
 // Begin set operations
@@ -659,7 +677,7 @@ void KmerIndex::BuildReconstructionGraph(const ProgramOptions& opt) {
     }
     for (auto& of : ofs) (*of).close(); // Close files now that we've outputted everything
     for (auto& of : ofs) delete of; // Free pointer memory
-    
+
     if (range_discard > 0) {
         std::cerr << "[build] Number of input sequences filtered out due to length: " << range_discard << std::endl;
     }
@@ -880,24 +898,28 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
     std::ofstream const_right_file;
     std::vector<std::ofstream*> var_files;
     if (opt.bubble) {
-      const_left_file.open(opt.bubble_left_output_fasta);
-      const_right_file.open(opt.bubble_right_output_fasta);
-      for (auto f : opt.bubble_variation_output_fasta) {
-        var_files.push_back(new std::ofstream(f));
-        if (!(*(var_files[var_files.size()-1])).is_open()) {
-          std::cerr << "[WARNING]: Error opening output files." << std::endl;
-          return; // exit
+        const_left_file.open(opt.bubble_left_output_fasta);
+        const_right_file.open(opt.bubble_right_output_fasta);
+        for (auto f : opt.bubble_variation_output_fasta) {
+            var_files.push_back(new std::ofstream(f));
+            if (!(*(var_files[var_files.size() - 1])).is_open()) {
+                std::cerr << "[WARNING]: Error opening output files." << std::endl;
+                return; // exit
+            }
         }
-      }
-      // file validation
-      if (!const_left_file.is_open() || !const_right_file.is_open()) {
-        std::cerr << "[WARNING]: Error opening output files." << std::endl;
-        return; // exit
-      }
+        // file validation
+        if (!const_left_file.is_open() || !const_right_file.is_open()) {
+            std::cerr << "[WARNING]: Error opening output files." << std::endl;
+            return; // exit
+        }
     }
-    
+
     // continue with default processing
     // TODO: Reconstruct below
+
+
+    std::unordered_set<std::string> bubble_visited_anchor;
+
     for (const auto& unitig : ccdbg) { // Iterate through all the unitigs in the de bruijn graph
         //std::cout << ":--" << unitig.referenceUnitigToString() << std::endl;
         const UnitigColors* uc = unitig.getData()->getUnitigColors(unitig);
@@ -926,24 +948,24 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                 superset_colors.insert(it_uc.getColorID());
                                 int color = color_map[it_uc.getColorID()];
                                 k_map[color].insert(it_uc.getKmerPosition());
-				if (opt.distinguish_combinations) colorsetmap[unitig.getUnitigKmer(it_uc.getKmerPosition()).rep().toString()].insert(color);
+                                if (opt.distinguish_combinations) colorsetmap[unitig.getUnitigKmer(it_uc.getKmerPosition()).rep().toString()].insert(color);
                                 // DEBUG:
                                 // std::cout << color << " " << unitig.getUnitigKmer(it_uc.getKmerPosition()).rep().toString() << " " << unitig.getUnitigKmer(it_uc.getKmerPosition()).toString() << " " << it_uc.getKmerPosition() << " " << unitig.strand << std::endl;
                             }
                             if (opt.distinguish_combinations) {
-				    for (auto elem = colorsetmap.begin(); elem != colorsetmap.end(); elem++) {
-					    oss << ">";
-					    std::string color_key = "";
-					    for (auto color : elem->second) {
-						    color_key += std::to_string(color) + "_"; // Set of colors concatenated by underscores
-					    }
-					    if (color_key.size() == 0) color_key = "NULL "; // Should never happen...
-					    color_key.pop_back(); // Remove final underscore
-					    oss << color_key;
-					    oss << "\n";
-					    oss << elem->first << "\n";
-				    }
-			    }
+                                for (auto elem = colorsetmap.begin(); elem != colorsetmap.end(); elem++) {
+                                    oss << ">";
+                                    std::string color_key = "";
+                                    for (auto color : elem->second) {
+                                        color_key += std::to_string(color) + "_"; // Set of colors concatenated by underscores
+                                    }
+                                    if (color_key.size() == 0) color_key = "NULL "; // Should never happen...
+                                    color_key.pop_back(); // Remove final underscore
+                                    oss << color_key;
+                                    oss << "\n";
+                                    oss << elem->first << "\n";
+                                }
+                            }
                             std::string to_append = "";
                             // begin extend 
                             if (opt.extend) {
@@ -958,9 +980,8 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                             // begin bubble
                             if (opt.bubble) {
                                 int color = *superset_colors.begin();
-                                std::unordered_set<std::string> visited;
                                 //std::cout << ":-" << superset_colors.size() << "-" << unitig.referenceUnitigToString() << std::endl;
-                                Bubble result = exploreBubble(ccdbg, unitig, visited, superset_colors, color, k, const_left_stream, variation_stream, const_right_stream);
+                                Bubble result = exploreBubble(ccdbg, unitig, bubble_visited_anchor, superset_colors, color, k, const_left_stream, variation_stream, const_right_stream);
                             }
                             // end bubble
                             std::set<int> positions_to_remove; // Positions (i.e. k-mers) along the current unitig that will be cut out
@@ -1127,7 +1148,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                             } // end if !opt.distinguish_union
                             // Now, write out what remains among the contigs
                             for (const auto& k_elem : k_map) {
-				                if (opt.distinguish_combinations) break; // Don't need this loop; we're just doing combinations which we have already stored in output stream
+                                if (opt.distinguish_combinations) break; // Don't need this loop; we're just doing combinations which we have already stored in output stream
                                 int curr_pos = -1;
                                 std::string colored_contig = "";
                                 auto color = k_elem.first;
@@ -1170,12 +1191,12 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                         }
                         // write bubble results to respective files
                         {
-                          std::unique_lock<std::mutex> lock(mutex_bubbles);
-                          const_left_file << const_left_stream.str();
-                          for (int i = 0; i < var_files.size(); i++) {
-                            *(var_files[i]) << variation_stream[i]; // Output variation within bubbles
-                          }
-                          const_right_file << const_right_stream.str();
+                            std::unique_lock<std::mutex> lock(mutex_bubbles);
+                            const_left_file << const_left_stream.str();
+                            for (int i = 0; i < var_files.size(); i++) {
+                                *(var_files[i]) << variation_stream[i]; // Output variation within bubbles
+                            }
+                            const_right_file << const_right_stream.str();
                         }
                         num_written += _num_written;
                         range_discard += _range_discard;
@@ -1191,16 +1212,16 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
     }
     o.flush();
     if (opt.bubble) {
-      const_left_file.flush();
-      const_right_file.flush(); // for bubble
-      const_left_file.close();
-      const_right_file.close();
-      // Close bubble files
-      for (auto& of : var_files) {
-        (*of).flush();
-        (*of).close();
-      } // Close files now that we've outputted everything
-      for (auto& of : var_files) delete of; // Free pointer memory
+        const_left_file.flush();
+        const_right_file.flush(); // for bubble
+        const_left_file.close();
+        const_right_file.close();
+        // Close bubble files
+        for (auto& of : var_files) {
+            (*of).flush();
+            (*of).close();
+        } // Close files now that we've outputted everything
+        for (auto& of : var_files) delete of; // Free pointer memory
     }
 
     ccdbg.clear(); // Free memory associated with the colored compact dBG
