@@ -171,6 +171,8 @@ check_fasta_files "$o/dummy_1revcomp_L.fa" "$o/dummy_1_V.fa" "$o/dummy_1_L.fa" "
 o="$test_dir"
 # Test using klue distinguish -k 7 snp_x.fa snp_y.fa
 checkcmdoutput "$klue distinguish --bubble -p -k 7 -L left.fa -R right.fa -V V0.fa,V1.fa $test_dir/snp_x.fa $test_dir/snp_y.fa |wc -c|tr -d ' '" e42bb897d0afcdb1f1c46fb5e0c1ad22  
+checkcmdoutput "cat V0.fa |wc -c|tr -d ' '" 5aa8301da6367a102391fc70cae9ee87 
+checkcmdoutput "cat V1.fa |wc -c|tr -d ' '" 90fafcc60c7ee9f7a16e46c69606f9fa 
 check_fasta_files "$o/klue_output/snp_xy_expected_L.fa" "$o/klue_output/snp_xy_expected_V0.fa" "$o/klue_output/snp_xy_expected_R.fa" "left.fa" "V0.fa" "right.fa"
 check_fasta_files "$o/klue_output/snp_xy_expected_L.fa" "$o/klue_output/snp_xy_expected_V1.fa" "$o/klue_output/snp_xy_expected_R.fa" "left.fa" "V1.fa" "right.fa"
 
