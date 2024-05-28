@@ -427,7 +427,8 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
     }
 
     bool outputted_left_right = false;
-    int already_encountered = 0;
+   
+    std::vector<std::string> visited_local;
     for (int color = 0; color < path.size(); color++) {
         bool outputted_color = false;
         if (path[color].empty()) { continue; }
@@ -440,17 +441,29 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                 if (std::find_if(path[color][path_i].begin(), path[color][path_i].end(), [&](const std::string& node) {
                     return visited.count(node) || visited.count(revcomp(node));
                     }) != path[color][path_i].end()) {
-                    already_encountered++;
                 }
                 else {
                     visited.insert(left);
                     visited.insert(right);
+
+                    visited_local.push_back(left);
+                    visited_local.push_back(right);
+
+                }
+                if (visited_local.empty()) continue;
+                std::string head = visited_local[1];
+                std::string tail = visited_local[0];
+
+                // want last (k-1) characters of head to match first (k-1) characters of variation AND first (k-1) characters of tail to match last (k-1) characters of variation, otherwise invalid bubble
+                if (head.substr(head.length() - (k - 1)) != path[color][path_i][path[color][path_i].size() - 3].substr(0, k - 1) || 
+                    tail.substr(0, k - 1) != path[color][path_i][path[color][path_i].size() - 3].substr(path[color][path_i][path[color][path_i].size() - 3].length() - (k - 1))) {
+                    continue;
                 }
 
-                if (!outputted_left_right && already_encountered == color) left_stream << ">" << header << "\n" << path[color][path_i][0] << "\n"; // First element
-                if (!outputted_color && already_encountered == color) var_stream[color] += ">" + std::to_string(color) + "\n" + path[color][path_i][path[color][path_i].size() - 3] + "\n"; // Stitched element
+                if (!outputted_left_right) left_stream << ">" << header << "\n" << path[color][path_i][0] << "\n"; // First element
+                if (!outputted_color) var_stream[color] += ">" + std::to_string(color) + "\n" + path[color][path_i][path[color][path_i].size() - 3] + "\n"; // Stitched element
                 outputted_color = true;
-                if (!outputted_left_right && already_encountered == color) right_stream << ">" << header << "\n" << path[color][path_i].back() << "\n"; // Last element
+                if (!outputted_left_right) right_stream << ">" << header << "\n" << path[color][path_i].back() << "\n"; // Last element
                 outputted_left_right = true; // We only want to output left/right once
                 outputted_once = true;
             }
