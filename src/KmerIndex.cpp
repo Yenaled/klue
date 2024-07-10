@@ -213,15 +213,14 @@ void traverseBubble(ColoredCDBG<void>& ccdbg,
     int prev_strand,
     int rand_id,
     int k,
-    std::vector<Kmer>& visited_nodes,  // Change to vector for debugging
-    std::vector<Kmer>& visited_nodes_second_time, // Change to vector for debugging
-    //std::unordered_set<Kmer, KmerHash> visited_nodes,
-    //std::unordered_set<Kmer, KmerHash> visited_nodes_second_time,
+    std::unordered_set<Kmer, KmerHash> visited_nodes,
+    std::unordered_set<Kmer, KmerHash> visited_nodes_second_time,
     const std::unordered_set<int>& ideal_color_profile,
     bool skip_successor_flag = false) {
 
     UnitigMap<DataAccessor<void>, DataStorage<void>, false> current = ccdbg.find(curr_node.rep()); // Unitig associated with current node
     if (current.isEmpty) { return; } // Empty mapping
+    if (cycle > 15) { return; } // Set cycle limit  -- 15-18 is ok
 
     current.strand = prev_strand;
     UnitigColors::const_iterator it_uc = current.getData()->getUnitigColors(current)->begin(current);
@@ -230,30 +229,11 @@ void traverseBubble(ColoredCDBG<void>& ccdbg,
     std::string contig = "";
     int curr_pos = -1;
     std::unordered_map<Kmer, std::unordered_set<int>, KmerHash> kmers_color_map; // Key = k-mer; Value = Set of all colors associated with that k-mer
-
     bool skip_successor = skip_successor_flag;
-    // Change to vector for debugging
-    auto it = std::find(visited_nodes.begin(), visited_nodes.end(), curr_node.rep());
-    if (it != visited_nodes.end()) { // Already found current node
-        auto second_time_it = std::find(visited_nodes_second_time.begin(), visited_nodes_second_time.end(), curr_node.rep());
-        if (second_time_it != visited_nodes_second_time.end()) { // Also already found it a second time!
-            skip_successor_flag = true;
-            //return; // If this is our third time visiting current node, we don't want to continue...
-        }
-        else {
-            visited_nodes_second_time.push_back(curr_node.rep()); // Second time visiting current node
-        }
-    }
-    else {
-        visited_nodes.push_back(curr_node.rep()); // First time visiting current node
-    }
-    
-    // Change back to unordered_set later
-    /*
+
     if (visited_nodes.find(curr_node.rep()) != visited_nodes.end()) { // Already found current node
         if (visited_nodes_second_time.find(curr_node.rep()) != visited_nodes_second_time.end()) { // Also already found it a second time!
             skip_successor_flag = true;
-            //return; // If this is our third time visiting current node, we don't want to continue...
         }
         else {
             visited_nodes_second_time.insert(curr_node.rep()); // Second time visiting current node, which is ok (we can loop once in the graph)
@@ -262,7 +242,6 @@ void traverseBubble(ColoredCDBG<void>& ccdbg,
     else {
         visited_nodes.insert(curr_node.rep()); // First time visiting current node
     }
-    */
 
     for (; it_uc != uc_end; ++it_uc) { // TODO: this is what we need to navigate well
         Kmer km = current.getUnitigKmer(it_uc.getKmerPosition());
@@ -306,16 +285,14 @@ void traverseBubble(ColoredCDBG<void>& ccdbg,
                 }
             }
             else if (current_color != ideal_color_profile) { // We're done with the beginning of the bubble
+                // the next line only allows superbubble exploration (i.e. NO nested bubbles)
                 //if (current_color.size() != 1)  return; // We only want one color for our path!                
                 if (!current_color.empty()) color = *(current_color.begin());
                 color_profile.clear();
                 color_profile.insert(color); // Now, we have our "official" path with our "official" color
-                // causes seg fault
-                /*
                 for (int i = 1; i < current_color.size(); ++i)  {
                     color_profile.insert(*(std::next(current_color.begin(), i)));
-                }
-                */
+                }                
                 tmp_path.push_back(contig); // Push back the contig we have so far (i.e. the beginning of the bubble)
                 contig = ""; // reset contig
             }
@@ -323,10 +300,7 @@ void traverseBubble(ColoredCDBG<void>& ccdbg,
         else if (current_color == ideal_color_profile || end_of_bubble) {
             // Yay, we've encountered the end of the bubble!
             if (!end_of_bubble) {
-                // Change to vector for debugging
-                // causes seg fault
-                //if (std::find(visited_nodes_second_time.begin(), visited_nodes_second_time.end(), kmer.rep()) != visited_nodes_second_time.end()) return; // Can't have a loop be the end of a bubble
-                //if (visited_nodes_second_time.find(kmer.rep()) != visited_nodes_second_time.end()) return; // Can't have a loop be the end of a bubble
+                if (visited_nodes_second_time.find(kmer.rep()) != visited_nodes_second_time.end()) return; // Can't have a loop be the end of a bubble
                 tmp_path.push_back(contig); // Push back the contig we have so far
                 contig = ""; // reset contig
                 end_of_bubble = true;
@@ -338,47 +312,30 @@ void traverseBubble(ColoredCDBG<void>& ccdbg,
         else if (current_color != color_profile) {
             if (!contig.empty()) return; // Oops, ran into a color switch (aka a "dead end"), just return without updating anything
             color_profile.clear();
-            // causes seg fault
-            /*
             for (const auto& c : current_color) {
-                //color_profile.insert(c);
-                //if (color_profile.size() == 1) color = c;
-            } 
-            */
+                color_profile.insert(c);
+                if (color_profile.size() == 1) color = c;
+            }
+            
         }
         std::string _km = prev_strand ? kmer.twin().toString() : kmer.toString();
         if (contig == "") contig = _km;
         else {
             // if last (k-1) of _km and first (k-1) of contig are the same, we want to take the first character of _km and append it to contig
-            // causes seg fault
-            /*
             if (_km.length() > 1 && contig.length() >= (k - 1)) {
                 if (_km.substr(1) == contig.substr(0, k - 1)) {
                     contig = _km[0] + contig;
                 }
             }
-            */
             // if last (k-1) of _km and last (k-1) of contig are the same, we want to take the last character of _km and append it to contig
-            /* else */ contig += _km[k - 1]; // _km.length() = k
-            // DEBUG -- check if substring is causing seg fault
-            // this is fine - (doesn't print) - if {} should be ok
-            if (_km.length() <= 1) {
-                std::cout << "_km is too short." << std::endl;
-            }
-            if (contig.length() < (k - 1)) {
-                std::cout << "contig is too short." << std::endl;
-            }
+            else contig += _km[k - 1]; // _km.length() = k
         }
     }
-
     if (contig != "" && start) tmp_path.push_back(contig);
-    
-    // causes seg fault
     if (end_of_bubble) {
-        //path[color].push_back(std::move(tmp_path)); // Note: Make sure we allocate in advance the path vector with the number of colors in advance
-        //return;
+        path[color].push_back(std::move(tmp_path)); // Note: Make sure we allocate in advance the path vector with the number of colors in advance
+        return;
     }
-
     auto successors = current.getSuccessors();
     auto predecessors = current.getPredecessors();
     ++cycle;
@@ -416,10 +373,8 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
     if (successors_.begin() == successors_.end() && predecessors_.begin() == predecessors_.end()) { return {}; } // Isolated node [no bubble structure]
 
     // Navigate to the very left anchor of bubble
-    std::vector<Kmer> visited_nodes;  // Change to vector for debugging
-    std::vector<Kmer> visited_nodes_second_time; // Change to vector for debugging
-    //std::unordered_set<Kmer, KmerHash> visited_nodes;
-    //std::unordered_set<Kmer, KmerHash> visited_nodes_second_time;
+    std::unordered_set<Kmer, KmerHash> visited_nodes;
+    std::unordered_set<Kmer, KmerHash> visited_nodes_second_time;
     std::unordered_set<int> ideal_color_profile;
     for (int i = 0; i < ccdbg.getColorNames().size(); i++) {
         ideal_color_profile.insert(i);
@@ -956,7 +911,6 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
         for (const auto& pair : expr_to_int) { std::cout << std::setw(maxWidth + 8) << pair.first << ": " << pair.second << "\n"; }
     }
     // for bubble
-    std::mutex mutex_bubbles;
     std::ofstream const_left_file;
     std::ofstream const_right_file;
     std::vector<std::ofstream*> var_files;
@@ -990,7 +944,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
         if (unitigs_v[unitigs_v.size() - 1].size() >= thresh_size || n >= ccdbg.size()) { // If we're ready to start processing the unitigs using a series of workers
             for (size_t u_i = 0; u_i < unitigs_v.size(); u_i++) { // u_i = specific batch of unitigs that a worker will act on
                 workers.emplace_back(
-                    [&, u_i] {
+                    [&, u_i] { // [&] = capture all variables by reference; u_i = specific batch of unitigs that a worker will act on
                         std::ostringstream oss;
                         std::ostringstream const_left_stream, const_right_stream; // for bubble    
                         std::vector<std::string> variation_stream; // Since stringstreams are not copyable, just use an ordinary string here
@@ -1251,7 +1205,6 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                         }
                         // write bubble results to respective files
                         {
-                            std::unique_lock<std::mutex> lock(mutex_bubbles);
                             const_left_file << const_left_stream.str();
                             for (int i = 0; i < var_files.size(); i++) {
                                 *(var_files[i]) << variation_stream[i]; // Output variation within bubbles
@@ -1283,7 +1236,6 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
         } // Close files now that we've outputted everything
         for (auto& of : var_files) delete of; // Free pointer memory
     }
-
     ccdbg.clear(); // Free memory associated with the colored compact dBG
     ncolors = tmp_files.size(); // Record the number of "colors"
     for (auto tmp_file : tmp_files) std::remove(tmp_file.c_str()); // Remove temp files needed to make colored graph
