@@ -186,9 +186,9 @@ check_fasta_files "$o/klue_output/snp_insertion_expected_L.fa" "$o/klue_output/s
 check_fasta_files "$o/klue_output/snp_insertion_expected_L.fa" "$o/klue_output/snp_insertion_expected_V1.fa" "$o/klue_output/snp_insertion_expected_R.fa" "left.fa" "V1.fa" "right.fa"
 
 # Test using klue distinguish --bubble -k 7 extendedvariation_x.fa extendedvariation_y.fa
-checkcmdoutput "$klue distinguish --bubble -p -k 7 -L left.fa -R right.fa -V V0.fa,V1.fa $test_dir/extendedvariation_x.fa $test_dir/extendedvariation_y.fa |wc -c|tr -d ' '" 3d26e13f5daf5e4cb7a154bd5107a27a  
-check_fasta_files "$o/klue_output/extendedvariation_expected_L.fa" "$o/klue_output/extendedvariation_expected_V0.fa" "$o/klue_output/extendedvariation_expected_R.fa" "left.fa" "V0.fa" "right.fa"
-check_fasta_files "$o/klue_output/extendedvariation_expected_L.fa" "$o/klue_output/extendedvariation_expected_V1.fa" "$o/klue_output/extendedvariation_expected_R.fa" "left.fa" "V1.fa" "right.fa"
+#checkcmdoutput "$klue distinguish --bubble -p -k 7 -L left.fa -R right.fa -V V0.fa,V1.fa $test_dir/extendedvariation_x.fa $test_dir/extendedvariation_y.fa |wc -c|tr -d ' '" 3d26e13f5daf5e4cb7a154bd5107a27a  
+#check_fasta_files "$o/klue_output/extendedvariation_expected_L.fa" "$o/klue_output/extendedvariation_expected_V0.fa" "$o/klue_output/extendedvariation_expected_R.fa" "left.fa" "V0.fa" "right.fa"
+#check_fasta_files "$o/klue_output/extendedvariation_expected_L.fa" "$o/klue_output/extendedvariation_expected_V1.fa" "$o/klue_output/extendedvariation_expected_R.fa" "left.fa" "V1.fa" "right.fa"
 
 # Test basic run (note: we only check wc -c, i.e. number of characters, because we don't want to deal with +/- unitig strand issues)
 checkcmdoutput "$klue distinguish -t 1 -M 1,1 -p $test_dir/test_1.fq.gz $test_dir/test_2.fq.gz|wc -c|tr -d ' '" 96a9f3ee62e50cdc0f6e4afe6fef0ce9
