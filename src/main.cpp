@@ -65,6 +65,7 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
   int distinguish_combinations_flag = 0;
   int extension_flag = 0;
   int bubble_flag = 0;
+  int simple_bubble_flag = 0;
   const char *opt_string = "o:L:R:V:k:m:t:r:M:g:ps:T:";
   static struct option long_options[] = {
     // long args
@@ -74,6 +75,7 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
     {"combinations", no_argument, &distinguish_combinations_flag, 1},
     {"extend", no_argument, &extension_flag, 1},
     {"bubble", no_argument, &bubble_flag, 1},
+    {"simple_bubble", no_argument, &simple_bubble_flag, 1},
     // short args
     {"output", required_argument, 0, 'o'},
     {"left", required_argument, 0, 'L'},
@@ -206,6 +208,9 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
   }
   if (bubble_flag) {
 	opt.bubble = true;
+  }
+  if (simple_bubble_flag) {
+	opt.simple_bubble = true;
   }
   for (int i = optind; i < argc; i++) {
     opt.transfasta.push_back(argv[i]);
