@@ -880,7 +880,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
     std::cerr << "[build] Extracting k-mers from graph" << std::endl;
     std::streambuf* buf = nullptr;
     std::ofstream of;
-    if (!opt.stream_out && !opt.bubble) {
+    if (!opt.stream_out /* && !opt.bubble*/) {
         of.open(out_file); // Write color contigs into another file
         buf = of.rdbuf();
     }
