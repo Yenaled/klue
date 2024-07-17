@@ -220,8 +220,7 @@ void traverseBubble(ColoredCDBG<void>& ccdbg,
 
     UnitigMap<DataAccessor<void>, DataStorage<void>, false> current = ccdbg.find(curr_node.rep()); // Unitig associated with current node
     if (current.isEmpty) { return; } // Empty mapping
-    if (cycle > 15) { return; } // Set cycle limit  -- 15-18 is ok
-
+    if (cycle > 3) { return; } // Set cycle limit
     current.strand = prev_strand;
     UnitigColors::const_iterator it_uc = current.getData()->getUnitigColors(current)->begin(current);
     UnitigColors::const_iterator uc_end = current.getData()->getUnitigColors(current)->end();
@@ -277,7 +276,6 @@ void traverseBubble(ColoredCDBG<void>& ccdbg,
         }
         assert(!current_color.empty());
         std::string km = kmer.toString();
-
         if (color == -1) {
             if (!start) { // Make sure we have continuous segment of ideal_color_profile color profile before doing anything further
                 if (current_color == ideal_color_profile) {
@@ -287,7 +285,7 @@ void traverseBubble(ColoredCDBG<void>& ccdbg,
             else if (current_color != ideal_color_profile) { // We're done with the beginning of the bubble
                 // the next line only allows superbubble exploration (i.e. NO nested bubbles)
                 //if (current_color.size() != 1)  return; // We only want one color for our path!                
-                if (!current_color.empty()) color = *(current_color.begin());
+                color = *(current_color.begin());
                 color_profile.clear();
                 color_profile.insert(color); // Now, we have our "official" path with our "official" color
                 for (int i = 1; i < current_color.size(); ++i)  {
@@ -315,21 +313,26 @@ void traverseBubble(ColoredCDBG<void>& ccdbg,
             for (const auto& c : current_color) {
                 color_profile.insert(c);
                 if (color_profile.size() == 1) color = c;
-            }
-            
+            }            
         }
         std::string _km = prev_strand ? kmer.twin().toString() : kmer.toString();
         if (contig == "") contig = _km;
         else {            
             // if last (k-1) of _km and first (k-1) of contig are the same, we want to take the first character of _km and append it to contig
+            if (_km.substr(1) == contig.substr(0, k - 1)) {
+                contig = _km[0] + contig;
+            }
+            // stricter if condition
+            /*
             if (_km.length() > 1 && contig.length() >= (k - 1)) {
                 if (_km.substr(1) == contig.substr(0, k - 1)) {
                     contig = _km[0] + contig;
                 }
             }
+            */
             // if last (k-1) of _km and last (k-1) of contig are the same, we want to take the last character of _km and append it to contig
             else {
-                contig += _km[k - 1]; // _km.length() = k                
+                contig += _km[k - 1]; // k = _km.length()               
             }
         }
     }
@@ -402,13 +405,11 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                 if (k - 1 > 0 && x.length() >= k - 1) {
                     x_last = x.substr(x.length() - (k - 1)); // last (k-1) characters
                 }
-
                 auto& next = path[color][path_i][i + 1];
                 std::string next_first = next.substr(0, k - 1); // first (k-1) characters
                 std::string next_last;
                 std::string substr1;
                 std::string substr2;
-
                 if (k - 1 > 0 && next.length() >= k - 1) {
                     next_last = next.substr(next.length() - (k - 1)); // last (k-1) characters
                     substr1 = next.substr(0, next.length() - (k - 1));
@@ -499,50 +500,6 @@ std::vector<std::string> split(const std::string& s, char delimiter) {
     }
     return tokens;
 }
-
-// switch to NAND boolean logic
-/*
-
-"not" : NOT(A) = A NAND A
-"and" : A AND B = ( A NAND B ) NAND ( A NAND B )
-"or"  : A OR B = ( A NAND A ) NAND ( B NAND B )
-"nor" : A NOR B = [ ( A NAND A ) NAND ( B NAND B ) ] NAND [ ( A NAND A ) NAND ( B NAND B ) ]
-"xor" : A XOR B = [ A NAND ( A NAND B ) ] NAND [ B NAND ( A NAND B ) ]
-"xnor": A XNOR B = [ ( A NAND A ) NAND ( B NAND B ) ] NAND ( A NAND B )
-
-*/
-/*
-
-// NAND operation
-bool nand(bool a, bool b) {
-    return !(a && b);
-}
-
-// Implement other operations using NAND
-bool NOT(bool a) {
-    return nand(a, a);
-}
-
-bool AND(bool a, bool b) {
-    return NOT(nand(a, b));
-}
-
-bool OR(bool a, bool b) {
-    return nand(NOT(a), NOT(b));
-}
-
-bool XOR(bool a, bool b) {
-    return nand(nand(a, nand(a, b)), nand(b, nand(a, b)));
-}
-
-bool NOR(bool a, bool b) {
-    return NOT(OR(a, b));
-}
-
-bool XNOR(bool a, bool b) {
-    return NOT(XOR(a, b));
-}
-*/
 
 // Recursively compute set operations (union and intersection are nodes) that correspond to specific sets (leaves)
 std::set<int> computeSetOperation(const Node* root, const std::map<int, std::set<int>>& k_map) {
@@ -920,7 +877,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
         for (auto f : opt.bubble_variation_output_fasta) {
             var_files.push_back(new std::ofstream(f));
             if (!(*(var_files[var_files.size() - 1])).is_open()) {
-                std::cerr << "Warning: Error opening output files." << std::endl;
+                std::cerr << "Warning: Error opening variation output files." << std::endl;
                 return; // exit
             }
         }
@@ -930,7 +887,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
             const_right_file.open(opt.bubble_right_output_fasta);
             // file validation
             if (!const_left_file.is_open() || !const_right_file.is_open()) {
-                std::cerr << "Warning: Error opening output files." << std::endl;
+                std::cerr << "Warning: Error opening anchor output files." << std::endl;
                 return; // exit
             }
         }
