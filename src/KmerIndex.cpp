@@ -378,7 +378,7 @@ std::string generate_revcomp(const std::string& s) {
 }
 
 // check k-1 overlap between two sequences
-bool overhang(const std::string& seq1, const std::string& seq2, int k) {
+bool overlap(const std::string& seq1, const std::string& seq2, int k) {
     if (k <= 1 || static_cast<size_t>(k - 1) > seq1.size() || static_cast<size_t>(k - 1) > seq2.size()) {
         return false;
     }
@@ -389,8 +389,8 @@ bool overhang(const std::string& seq1, const std::string& seq2, int k) {
 bool permute(const std::vector<std::string>& sequences, int k) {
     for (const auto& left : sequences) {
         for (const auto& right : sequences) {
-            if (overhang(left, right, k) || overhang(generate_revcomp(left), right, k) ||
-                overhang(left, generate_revcomp(right), k) || overhang(generate_revcomp(left), generate_revcomp(right), k)) {
+            if (overlap(left, right, k) || overlap(generate_revcomp(left), right, k) ||
+                overlap(left, generate_revcomp(right), k) || overlap(generate_revcomp(left), generate_revcomp(right), k)) {
                 return true;
             }
         }
