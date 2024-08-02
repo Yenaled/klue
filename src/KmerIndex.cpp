@@ -359,6 +359,45 @@ void traverseBubble(ColoredCDBG<void>& ccdbg,
     }
 }
 
+std::string generate_revcomp(const std::string& s) {
+    std::string r(s.size(), ' ');
+    std::transform(s.rbegin(), s.rend(), r.begin(), [](char c) {
+        switch (c) {
+        case 'A': return 'T';
+        case 'C': return 'G';
+        case 'G': return 'C';
+        case 'T': return 'A';
+        case 'a': return 'T';
+        case 'c': return 'G';
+        case 'g': return 'C';
+        case 't': return 'A';
+        default: return 'N';
+        }
+        });
+    return r;
+}
+
+// check k-1 overlap between two sequences
+bool overhang(const std::string& seq1, const std::string& seq2, int k) {
+    if (k <= 1 || static_cast<size_t>(k - 1) > seq1.size() || static_cast<size_t>(k - 1) > seq2.size()) {
+        return false;
+    }
+    return seq1.substr(seq1.size() - (k - 1)) == seq2.substr(0, (k - 1));
+}
+
+// check all permutations of forward and reverse complement k-sequences
+bool permute(const std::vector<std::string>& sequences, int k) {
+    for (const auto& left : sequences) {
+        for (const auto& right : sequences) {
+            if (overhang(left, right, k) || overhang(generate_revcomp(left), right, k) ||
+                overhang(left, generate_revcomp(right), k) || overhang(generate_revcomp(left), generate_revcomp(right), k)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
     const UnitigMap<DataAccessor<void>, DataStorage<void>, false>& current,
     std::unordered_set<std::string>& visited,
@@ -477,6 +516,9 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                     tail.substr(0, k - 1) != path[color][path_i][path[color][path_i].size() - 3].substr(path[color][path_i][path[color][path_i].size() - 3].length() - (k - 1))) {
                     continue;
                 }
+                // check for k-1 overlap among the permutations of left, right, variation sequences
+                std::vector<std::string> sequences = { path[color][path_i][0], path[color][path_i][path[color][path_i].size() - 3], path[color][path_i].back()};
+                if (!permute(sequences, k)) continue; // invalid bubble
                 if (!outputted_left_right) left_stream << ">" << header << "\n" << path[color][path_i][0] << "\n"; // First element
                 if (!outputted_color) var_stream[color] += ">" + std::to_string(color) + "\n" + path[color][path_i][path[color][path_i].size() - 3] + "\n"; // Stitched element
                 outputted_color = true;
@@ -954,8 +996,15 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                             // end --extend
                             // begin --bubble
                             if (opt.bubble) {
+                                // default --bubble
+                                if (!opt.simple_bubble) {
+                                    int color = *superset_colors.begin();
+                                    //std::cout << ":-" << superset_colors.size() << "-" << unitig.referenceUnitigToString() << std::endl;
+                                    Bubble result = exploreBubble(ccdbg, unitig, bubble_visited_anchor, all_nodes, superset_colors, color, k, const_left_stream, variation_stream, const_right_stream);
+                                }
+                                // end default --bubble
                                 // begin --simple
-                                if (opt.simple_bubble) {
+                                else if (opt.simple_bubble) {
                                     if (superset_colors.size() > 1) { continue; } // We only check whether single-colored unitigs are flanked by bi-colored unitigs
                                     int color = *superset_colors.begin();                                   
 
@@ -966,37 +1015,32 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
 
                                     // If any of the successors or predecessors are bi-colored, output the current unitig
                                     bool forward_is_bi_colored = false;
-                                    bool forward_found_color = false;
+                                    bool forward_found_color = false; // ignore
                                     for (const auto& next : successors) {
                                         UnitigColors::const_iterator it_next = next.getData()->getUnitigColors(next)->begin(next);
                                         UnitigColors::const_iterator it_next_end = next.getData()->getUnitigColors(next)->end();
                                         std::unordered_set<int> colors;
                                         for (; it_next != it_next_end; ++it_next) { colors.insert(it_next.getColorID()); }
-                                        if (colors.find(color) != colors.end()) { forward_found_color = true; }
                                         if (colors.size() > 1) { forward_is_bi_colored = true; }
+                                        if (colors.find(color) != colors.end()) { forward_found_color = true; } // ignore
+                                       
                                     }
                                     bool backward_is_bi_colored = false;
-                                    bool backward_found_color = false;
+                                    bool backward_found_color = false; // ignore
                                     for (const auto& prev : predecessors) {
                                         UnitigColors::const_iterator it_prev = prev.getData()->getUnitigColors(prev)->begin(prev);
                                         UnitigColors::const_iterator it_prev_end = prev.getData()->getUnitigColors(prev)->end();
                                         std::unordered_set<int> colors;
                                         for (; it_prev != it_prev_end; ++it_prev) { colors.insert(it_prev.getColorID()); }
-                                        if (colors.find(color) != colors.end()) { backward_found_color = true; }
                                         if (colors.size() > 1) { backward_is_bi_colored = true; }
+                                        if (colors.find(color) != colors.end()) { backward_found_color = true; } // ignore
                                     }
                                     // output the current unitig if it is flanked by bi-colored unitigs
-                                    if (forward_found_color && backward_found_color) {
+                                    if (forward_is_bi_colored && backward_is_bi_colored) {
                                         variation_stream[color] += ">" + std::to_string(color) + "\n" + unitig.referenceUnitigToString() + "\n";
                                     }
                                 }
                                 // end --simple
-                                // default --bubble
-                                else {
-                                    int color = *superset_colors.begin();
-                                    //std::cout << ":-" << superset_colors.size() << "-" << unitig.referenceUnitigToString() << std::endl;
-                                    Bubble result = exploreBubble(ccdbg, unitig, bubble_visited_anchor, all_nodes, superset_colors, color, k, const_left_stream, variation_stream, const_right_stream);
-                                }
                             }
                             // end --bubble
                             std::set<int> positions_to_remove; // Positions (i.e. k-mers) along the current unitig that will be cut out
