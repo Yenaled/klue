@@ -511,18 +511,23 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                 if (visited_local.empty()) continue;
                 std::string head = visited_local[1];
                 std::string tail = visited_local[0];
+                // Check if the bubble is valid
+                std::vector<std::string> sequences = { path[color][path_i][0], path[color][path_i][path[color][path_i].size() - 3], path[color][path_i].back() };
+                // check for k-1 overlap among the permutations of left, right, variation sequences
+                if (!permute(sequences, k)) continue; // invalid bubble
+                // this is redundant
                 // want last (k-1) characters of head to match first (k-1) characters of variation AND first (k-1) characters of tail to match last (k-1) characters of variation, otherwise invalid bubble
+                /*
                 if (head.substr(head.length() - (k - 1)) != path[color][path_i][path[color][path_i].size() - 3].substr(0, k - 1) ||
                     tail.substr(0, k - 1) != path[color][path_i][path[color][path_i].size() - 3].substr(path[color][path_i][path[color][path_i].size() - 3].length() - (k - 1))) {
                     continue;
                 }
-                // check for k-1 overlap among the permutations of left, right, variation sequences
-                std::vector<std::string> sequences = { path[color][path_i][0], path[color][path_i][path[color][path_i].size() - 3], path[color][path_i].back()};
-                if (!permute(sequences, k)) continue; // invalid bubble
-                if (!outputted_left_right) left_stream << ">" << header << "\n" << path[color][path_i][0] << "\n"; // First element
-                if (!outputted_color) var_stream[color] += ">" + std::to_string(color) + "\n" + path[color][path_i][path[color][path_i].size() - 3] + "\n"; // Stitched element
+                */
+                
+                if (!outputted_left_right) left_stream << ">" << header << "\n" << sequences.front() << "\n"; // First element
+                if (!outputted_color) var_stream[color] += ">" + std::to_string(color) + "\n" + sequences[1] + "\n"; // Stitched element
                 outputted_color = true;
-                if (!outputted_left_right) right_stream << ">" << header << "\n" << path[color][path_i].back() << "\n"; // Last element
+                if (!outputted_left_right) right_stream << ">" << header << "\n" << sequences.back() << "\n"; // Last element
                 outputted_left_right = true; // We only want to output left/right once
                 outputted_once = true;
             }
