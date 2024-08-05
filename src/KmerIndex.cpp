@@ -379,10 +379,10 @@ std::string generate_revcomp(const std::string& s) {
 
 // check k-1 overlap between two sequences
 bool overlap(const std::string& seq1, const std::string& seq2, int k) {
-    if (k <= 1 || static_cast<size_t>(k - 1) > seq1.size() || static_cast<size_t>(k - 1) > seq2.size()) {
+    if (k <= 1 || k-1 > seq1.size() || k-1 > seq2.size()) {
         return false;
     }
-    return seq1.substr(seq1.size() - (k - 1)) == seq2.substr(0, (k - 1));
+    return seq1.substr(seq1.size() - (k-1)) == seq2.substr(0, (k-1));
 }
 
 // check all permutations of forward and reverse complement k-sequences
@@ -1006,37 +1006,38 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                 // begin --simple
                                 else if (opt.simple_bubble) {
                                     if (superset_colors.size() > 1) { continue; } // We only check whether single-colored unitigs are flanked by bi-colored unitigs
-                                    int color = *superset_colors.begin();                                   
+                                    int color = *superset_colors.begin();
 
                                     // Check if the current k-mer is flanked by bi-colored unitigs
                                     auto successors = unitig.getSuccessors();
                                     auto predecessors = unitig.getPredecessors();
                                     if (successors.begin() == successors.end() && predecessors.begin() == predecessors.end()) { continue; } // If the unitig has no successors or predecessors, skip it
-
-                                    // If any of the successors or predecessors are bi-colored, output the current unitig
-                                    bool forward_is_bi_colored = false;
-                                    bool forward_found_color = false; // ignore
+                                    // Check if all successors are bi-colored
+                                    bool all_successors_bi_colored = true;
                                     for (const auto& next : successors) {
                                         UnitigColors::const_iterator it_next = next.getData()->getUnitigColors(next)->begin(next);
                                         UnitigColors::const_iterator it_next_end = next.getData()->getUnitigColors(next)->end();
                                         std::unordered_set<int> colors;
                                         for (; it_next != it_next_end; ++it_next) { colors.insert(it_next.getColorID()); }
-                                        if (colors.size() > 1) { forward_is_bi_colored = true; }
-                                        if (colors.find(color) != colors.end()) { forward_found_color = true; } // ignore
-                                       
+                                        if (colors.size() <= 1) {
+                                            all_successors_bi_colored = false;
+                                            break;
+                                        }
                                     }
-                                    bool backward_is_bi_colored = false;
-                                    bool backward_found_color = false; // ignore
+                                    // Check if all predecessors are bi-colored
+                                    bool all_predecessors_bi_colored = true;
                                     for (const auto& prev : predecessors) {
                                         UnitigColors::const_iterator it_prev = prev.getData()->getUnitigColors(prev)->begin(prev);
                                         UnitigColors::const_iterator it_prev_end = prev.getData()->getUnitigColors(prev)->end();
                                         std::unordered_set<int> colors;
                                         for (; it_prev != it_prev_end; ++it_prev) { colors.insert(it_prev.getColorID()); }
-                                        if (colors.size() > 1) { backward_is_bi_colored = true; }
-                                        if (colors.find(color) != colors.end()) { backward_found_color = true; } // ignore
+                                        if (colors.size() <= 1) {
+                                            all_predecessors_bi_colored = false;
+                                            break;
+                                        }
                                     }
-                                    // output the current unitig if it is flanked by bi-colored unitigs
-                                    if (forward_is_bi_colored && backward_is_bi_colored) {
+                                    // Output the current unitig if all successors and predecessors are bi-colored
+                                    if (all_successors_bi_colored && all_predecessors_bi_colored) {
                                         variation_stream[color] += ">" + std::to_string(color) + "\n" + unitig.referenceUnitigToString() + "\n";
                                     }
                                 }
