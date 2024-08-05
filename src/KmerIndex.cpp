@@ -322,7 +322,6 @@ void traverseBubble(ColoredCDBG<void>& ccdbg,
             if (_km.substr(1) == contig.substr(0, k - 1)) {
                 contig = _km[0] + contig;
             }
-            // stricter if condition
             /*
             if (_km.length() > 1 && contig.length() >= (k - 1)) {
                 if (_km.substr(1) == contig.substr(0, k - 1)) {
@@ -385,7 +384,7 @@ bool overlap(const std::string& seq1, const std::string& seq2, int k) {
     return seq1.substr(seq1.size() - (k-1)) == seq2.substr(0, (k-1));
 }
 
-// check all permutations of forward and reverse complement k-sequences
+// check all permutations of forward and reverse complement sequences
 bool permute(const std::vector<std::string>& sequences, int k) {
     for (const auto& left : sequences) {
         for (const auto& right : sequences) {
@@ -466,7 +465,8 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
             }
         }
     }
-
+    
+    // print for debugging
     /*
     for (int color = 0; color < path.size(); color++) {
          if (path[color].size() == 0) { continue; }
@@ -479,7 +479,7 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
              std::cout << std::endl;
          }
     }
-    */
+    */    
 
     std::string header;
     for (int color = 0; color < path.size(); color++) {
@@ -491,7 +491,7 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
     std::vector<std::string> visited_local;
     for (int color = 0; color < path.size(); color++) {
         bool outputted_color = false;
-        if (path[color].empty()) { continue; }
+        if (path[color].empty()) continue;
         if (var_stream.size() == 1) { header = color; }
         for (int path_i = 0; path_i < path[color].size(); path_i++) {
             bool outputted_once = false;
@@ -514,16 +514,7 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
                 // Check if the bubble is valid
                 std::vector<std::string> sequences = { path[color][path_i][0], path[color][path_i][path[color][path_i].size() - 3], path[color][path_i].back() };
                 // check for k-1 overlap among the permutations of left, right, variation sequences
-                if (!permute(sequences, k)) continue; // invalid bubble
-                // this is redundant
-                // want last (k-1) characters of head to match first (k-1) characters of variation AND first (k-1) characters of tail to match last (k-1) characters of variation, otherwise invalid bubble
-                /*
-                if (head.substr(head.length() - (k - 1)) != path[color][path_i][path[color][path_i].size() - 3].substr(0, k - 1) ||
-                    tail.substr(0, k - 1) != path[color][path_i][path[color][path_i].size() - 3].substr(path[color][path_i][path[color][path_i].size() - 3].length() - (k - 1))) {
-                    continue;
-                }
-                */
-                
+                if (!permute(sequences, k)) continue;              
                 if (!outputted_left_right) left_stream << ">" << header << "\n" << sequences.front() << "\n"; // First element
                 if (!outputted_color) var_stream[color] += ">" + std::to_string(color) + "\n" + sequences[1] + "\n"; // Stitched element
                 outputted_color = true;
