@@ -493,54 +493,21 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                 std::unordered_set<std::string> visited;
                                 k_map.clear();
                                 for (const auto& c : superset_colors) {
-                                    // extendUnitig(unitig, c, unitig.getUnitigTail().toString(), superset_colors, k, visited); // void
                                     std::string result = extendUnitig(unitig, c, unitig.getUnitigTail().toString(), superset_colors, k, visited);
                                     if (!result.empty()) {
                                         for (const auto& s : split(result, ' ')) {
-                                            // [DEBUG] print extended contigs (all)
-                                            // std::cout << ">" << c << "\n" << s << "\n";
                                             for (auto iter = s.begin(); iter != s.end(); ++iter) {
                                                 int pos = std::distance(s.begin(), iter);
                                                 k_map[c].insert(pos);
                                             }
                                         }
                                     }
-                                }
-                                // distinguish (default : find k-mer positions exlusive to each color)
-                                /*
-                                std::string default_str = stringOpt(tmp_files.size(), "default"); // for n=8, generate "A\(AIBI...IH) B\(AIBI...IH) ... H\(AIBI...IH)"
-                                auto all_expr = split(default_str, ' ');
-                                for (const auto& expr : all_expr) {
-                                    ExpressionParser expr_parser(expr);
-                                    Node* root = expr_parser.parse();
-                                    std::set<int> set_operation_result = computeSetOperation(root, k_map); // set of positions to keep
-                                    // write out what remains among the contigs
-                                    for (const auto& k_elem : k_map) {
-                                        int curr_pos = -1;
-                                        auto color = expr[0] - 'A'; // A=0, B=1, C=2, ..., H=7
-                                        std::string colored_contig = "";
-                                        for (const auto& pos : k_elem.second) {
-                                            if (set_operation_result.count(pos)) {
-                                                std::string km = unitig.getUnitigKmer(pos).toString();
-                                                if (curr_pos == -1) { colored_contig = km; }
-                                                else if (pos == curr_pos + 1) { colored_contig += km[km.length() - 1]; }
-                                                else {
-                                                    if (colored_contig.length() >= rb && colored_contig.length() <= re && k_elem.first == color) { oss << ">" << std::to_string(color) << "\n" << colored_contig << "\n"; _num_written++; }
-                                                    else _range_discard++;
-                                                    colored_contig = km;
-                                                }
-                                                curr_pos = pos;
-                                            }
-                                        }
-                                        if (colored_contig != "") {
-                                            if (colored_contig.length() >= rb && colored_contig.length() <= re && k_elem.first == color) { oss << ">" << std::to_string(color) << "\n" << colored_contig << "\n"; _num_written++; }
-                                            else _range_discard++;
-                                        }
-                                    }
-                                }
-                                */
+                                }                                
                             }
                             // end extend
+                            // begin bubble
+                            // 
+                            // end bubble
                             std::set<int> positions_to_remove; // Positions (i.e. k-mers) along the current unitig that will be cut out
                             std::map<std::vector<int>, int> result_map; // Key = colors; Value = Position (i.e. k-mer)
                             std::stringstream ss; // For --combinations outputting aggregated colors
