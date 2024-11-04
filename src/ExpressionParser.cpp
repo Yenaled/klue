@@ -1,14 +1,23 @@
 #include "ExpressionParser.h"
+#include <stdexcept>
+#include <algorithm>
+#include <iterator>
+#include <iostream>
 
-ExpressionParser::ExpressionParser(const std::string& input) : input(input) { tokenize(this->input); }
+Node::Node(char v) : value(v), left(nullptr), right(nullptr) {}
 
-Node* ExpressionParser::parse() {
-    size_t index = 0;
-    return parseExpression(index);
+Node::~Node() {
+    delete left;
+    delete right;
+}
+
+ExpressionParser::ExpressionParser(const std::string& input) : input(input), currentIndex(0) {
+    tokenize(this->input);
 }
 
 std::vector<Token> ExpressionParser::tokenize(const std::string& input) {
     tokens.clear();
+    int open_pars = 0;
     for (char c : input) {
         switch (c) {
         case 'U':
@@ -22,53 +31,89 @@ std::vector<Token> ExpressionParser::tokenize(const std::string& input) {
             break;
         case '(':
             tokens.push_back(Token(OPEN_PAR, c));
+            open_pars++;
             break;
         case ')':
             tokens.push_back(Token(CLOSE_PAR, c));
+            open_pars--;
             break;
-        default:  // A, B, C, etc.
+        case 'N':
+            tokens.push_back(Token(NAND, c));
+            break;
+        case 'X':
+            tokens.push_back(Token(XOR, c));
+            break;
+        default:
             tokens.push_back(Token(VALUE, c));
             break;
         }
     }
+    if (open_pars != 0) {
+        throw std::runtime_error("[WARNING]: Unmatched parentheses in input.");
+    }
     return tokens;
 }
 
-Node* ExpressionParser::parsePrimary(size_t& index) {
-    if (index >= tokens.size()) return nullptr;
-
-    Node* node = nullptr;
-
-    if (tokens[index].type == VALUE) {
-        node = new Node(tokens[index].value);
-        index++;
+Node* ExpressionParser::parse() {
+    currentIndex = 0;
+    Node* result = parseExpression();
+    if (currentIndex != tokens.size()) {
+        throw std::runtime_error("[WARNING]: Unexpected tokens after parsing.");
     }
-    else if (tokens[index].type == OPEN_PAR) {
-        index++; // consume '('
-        node = parseExpression(index);
-        if (index < tokens.size() && tokens[index].type == CLOSE_PAR) {
-            index++; // consume ')'
-        }
-    }
+    return result;
+}
 
+Node* ExpressionParser::parseExpression() {
+    return parseUnionIntersection();
+}
+
+Node* ExpressionParser::parseUnionIntersection() {
+    Node* node = parseDifferenceNandXor();
+    while (currentIndex < tokens.size() &&
+        (tokens[currentIndex].type == UNION || tokens[currentIndex].type == INTERSECT)) {
+        Token op = tokens[currentIndex++];
+        Node* right = parseDifferenceNandXor();
+        node = createNodeForToken(op, node, right);
+    }
     return node;
 }
 
-Node* ExpressionParser::parseExpression(size_t& index) {
-    if (index >= tokens.size()) return nullptr;
-
-    Node* left = parsePrimary(index);
-
-    while (index < tokens.size() && (tokens[index].type == UNION || tokens[index].type == INTERSECT || tokens[index].type == DIFFERENCE)) {
-        Node* operation = new Node(tokens[index].value);
-        index++; // consume operation
-
-        Node* right = parsePrimary(index);
-
-        operation->left = left;
-        operation->right = right;
-        left = operation;  // the current operation becomes the new left operand for the next loop iteration
+Node* ExpressionParser::parseDifferenceNandXor() {
+    Node* node = parsePrimary();
+    while (currentIndex < tokens.size() &&
+        (tokens[currentIndex].type == DIFFERENCE || tokens[currentIndex].type == NAND || tokens[currentIndex].type == XOR)) {
+        Token op = tokens[currentIndex++];
+        Node* right = parsePrimary();
+        node = createNodeForToken(op, node, right);
     }
+    return node;
+}
 
-    return left;
+Node* ExpressionParser::parsePrimary() {
+    if (currentIndex >= tokens.size()) throw std::runtime_error("[WARNING]: Incomplete expression.");
+    Token token = tokens[currentIndex];
+
+    if (token.type == OPEN_PAR) {
+        currentIndex++; // Skip '('
+        Node* node = parseExpression();
+        if (currentIndex >= tokens.size() || tokens[currentIndex].type != CLOSE_PAR) {
+            throw std::runtime_error("[WARNING]: Missing closing parenthesis.");
+        }
+        currentIndex++; // Skip ')'
+        return node;
+    }
+    else if (token.type == VALUE) {
+        currentIndex++;
+        return new Node(token.value);
+    }
+    else {
+        throw std::runtime_error("[WARNING]: Unexpected token.");
+    }
+}
+
+Node* ExpressionParser::createNodeForToken(const Token& token, Node* left, Node* right) {
+    Node* node = new Node(token.value);
+    node->left = left;
+    node->right = right;
+    return node;
 }

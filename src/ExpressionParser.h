@@ -3,32 +3,34 @@
 
 #include <vector>
 #include <string>
+#include <map>
+#include <set>
 #include <sstream>
 
-// Enum for token type
 enum TokenType {
     VALUE,
     UNION,
     INTERSECT,
     DIFFERENCE,
+    NAND,
+    XOR,
     OPEN_PAR,
     CLOSE_PAR
 };
 
-// Token structure
 struct Token {
     TokenType type;
     char value;
     Token(TokenType t, char v) : type(t), value(v) {}
 };
 
-// Node structure for the binary tree
 struct Node {
     char value;
     Node* left;
     Node* right;
 
-    Node(char v) : value(v), left(nullptr), right(nullptr) {}
+    Node(char v);
+    ~Node();
 };
 
 class ExpressionParser {
@@ -40,9 +42,13 @@ public:
 private:
     std::string input;
     std::vector<Token> tokens;
+    size_t currentIndex;
 
-    Node* parsePrimary(size_t& index);
-    Node* parseExpression(size_t& index);
+    Node* parseExpression();
+    Node* parseUnionIntersection();
+    Node* parseDifferenceNandXor();
+    Node* parsePrimary();
+    Node* createNodeForToken(const Token& token, Node* left, Node* right);
 };
 
 #endif // EXPRESSION_PARSER_H
