@@ -400,7 +400,8 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
     int k,
     std::ostringstream& left_stream,
     std::vector<std::string>& var_stream,
-    std::ostringstream& right_stream) {
+    std::ostringstream& right_stream,
+    std::mutex& visited_mutex) {
 
     if (current.isEmpty) { return {}; } // Empty node
 
@@ -492,13 +493,21 @@ Bubble exploreBubble(ColoredCDBG<void>& ccdbg,
             if (!outputted_once) {
                 std::string left = path[color][path_i][0];
                 std::string right = path[color][path_i].back();
-                if (std::find_if(path[color][path_i].begin(), path[color][path_i].end(), [&](const std::string& node) {
-                    return visited.count(node) || visited.count(revcomp(node));
-                    }) != path[color][path_i].end()) {
-                }
-                else {
-                    visited.insert(left);
-                    visited.insert(right);
+                bool already_visited = false;
+                {
+                    std::lock_guard<std::mutex> lock(visited_mutex);
+                    if (std::find_if(path[color][path_i].begin(), path[color][path_i].end(), [&](const std::string& node) {
+                        return visited.count(node) || visited.count(revcomp(node));
+                        }) != path[color][path_i].end()) {
+                        already_visited = true;
+                    }
+		}
+                if (!already_visited) {
+                    {
+                        std::lock_guard<std::mutex> lock(visited_mutex);
+                        visited.insert(left);
+                        visited.insert(right);
+		    }
                     visited_local.push_back(left);
                     visited_local.push_back(right);
                 }
@@ -696,6 +705,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
     size_t ncolors = 0;
     std::string out_file = opt.distinguish_output_fasta;
     std::vector<std::string> tmp_files;
+    std::mutex visited_mutex;
     if (reconstruct) {
         tmp_files = transfasta;
     }
@@ -984,7 +994,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                 if (!opt.flanking_bubble) {
                                     int color = *superset_colors.begin();
                                     //std::cout << ":-" << superset_colors.size() << "-" << unitig.referenceUnitigToString() << std::endl;
-                                    Bubble result = exploreBubble(ccdbg, unitig, bubble_visited_anchor, all_nodes, superset_colors, color, k, const_left_stream, variation_stream, const_right_stream);
+                                    Bubble result = exploreBubble(ccdbg, unitig, bubble_visited_anchor, all_nodes, superset_colors, color, k, const_left_stream, variation_stream, const_right_stream, visited_mutex);
                                 }
                                 // end default --bubble
                                 // begin --flanking
