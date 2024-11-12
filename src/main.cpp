@@ -208,9 +208,12 @@ void ParseOptionsDistinguish(int argc, char **argv, ProgramOptions& opt) {
   }
   if (bubble_flag) {
 	opt.bubble = true;
+	opt.stream_out = true;
   }
   if (flanking_bubble_flag) {
+	opt.bubble = true;
 	opt.flanking_bubble = true;
+	opt.stream_out = true;
   }
   for (int i = optind; i < argc; i++) {
     opt.transfasta.push_back(argv[i]);
