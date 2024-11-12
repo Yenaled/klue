@@ -1266,12 +1266,13 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                 }
                             }
                         }
-                        {
+                        if (var_files.size() == 0) {
                             std::unique_lock<std::mutex> lock(mutex_unitigs);
                             o << oss.str();
                         }
                         // write bubble results to respective files
-                        {
+                        if (var_files.size() > 0) {
+                            std::unique_lock<std::mutex> lock(mutex_unitigs);
                             const_left_file << const_left_stream.str();
                             for (int i = 0; i < var_files.size(); i++) {
                                 *(var_files[i]) << variation_stream[i]; // Output variation within bubbles
