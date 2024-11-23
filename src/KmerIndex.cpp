@@ -1117,8 +1117,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                         ExpressionParser expr_parser(expr);
                                         Node* root;
 					std::set<int> set_operation_result;
-					bool do_reconstruct = (tmp_files.size() == 1); // If we only have one file, we can't do set operations (so we just reconstruct the unitigs from the k-mers in that file)
-					if (!do_reconstruct) {
+					if (!reconstruct) {
 					    root = expr_parser.parse();
 					    set_operation_result = computeSetOperation(root, k_map); // set of positions to keep
 					}
@@ -1128,7 +1127,7 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                             auto color = expr[0] - 'A'; // A=0, B=1, C=2, ..., H=7
                                             std::string colored_contig = "";
                                             for (const auto& pos : k_elem.second) {
-                                                if (do_reconstruct || set_operation_result.count(pos)) {
+                                                if (reconstruct || set_operation_result.count(pos)) {
                                                     std::string km = unitig.getUnitigKmer(pos).toString();
                                                     if (curr_pos == -1) { colored_contig = km; }
                                                     else if (pos == curr_pos + 1) { colored_contig += km[km.length() - 1]; }
