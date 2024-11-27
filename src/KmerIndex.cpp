@@ -1109,14 +1109,15 @@ void KmerIndex::BuildDistinguishingGraph(const ProgramOptions& opt, const std::v
                                 }
                                 continue; // colored contigs already extracted, continue to next iteration
                             }
-                            if (!opt.distinguish_union) { // If we don't specify --union (since if --union is specified, we don't actually need to do anything, remove any k-mers/positions, etc.)
-                                if (!opt.distinguish_all_but_one_color && !opt.distinguish_combinations) { // Workflow: Find k-mers unique/exclusive to each color
+                            { // Special operations (e.g. --all, --all-but-one, --combinations, or reconstruct)
+                                if (!opt.distinguish_all_but_one_color && !opt.distinguish_combinations) { // Workflow: Find k-mers unique/exclusive to each color, or reconstruct, or --all
                                     std::string default_str = stringOpt(tmp_files.size(), "default"); // for n=8, generate "A\(AIBI...IH) B\(AIBI...IH) ... H\(AIBI...IH)"
                                     auto all_expr = split(default_str, ' ');
                                     for (const auto& expr : all_expr) {
                                         ExpressionParser expr_parser(expr);
                                         Node* root;
 					std::set<int> set_operation_result;
+					if (opt.distinguish_union) reconstruct = true; // --all
 					if (!reconstruct) {
 					    root = expr_parser.parse();
 					    set_operation_result = computeSetOperation(root, k_map); // set of positions to keep
